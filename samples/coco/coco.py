@@ -40,7 +40,7 @@ import imgaug  # https://github.com/aleju/imgaug (pip3 install imgaug)
 # If the PR is merged then use the original repo.
 # Note: Edit PythonAPI/Makefile and replace "python" with "python3".
 
-# Test code to add directory of coco to path - colab specific
+# New code to add directory of coco to path - colab specific
 sys.path.append("/content/coco/PythonAPI")
 
 from pycocotools.coco import COCO
@@ -52,7 +52,8 @@ import urllib.request
 import shutil
 
 # Root directory of the project
-ROOT_DIR = os.path.abspath("../../")
+# ROOT_DIR = os.path.abspath("../../")
+ROOT_DIR = os.path.abspath("/content")  # Colab-specific root directory
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
