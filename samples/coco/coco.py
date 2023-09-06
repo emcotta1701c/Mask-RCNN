@@ -53,7 +53,7 @@ import shutil
 
 # Root directory of the project
 # ROOT_DIR = os.path.abspath("../../")
-ROOT_DIR = os.path.abspath("/content")  # Colab-specific root directory
+ROOT_DIR = os.path.abspath("/content/Mask-RCNN")  # Colab-specific root directory
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
