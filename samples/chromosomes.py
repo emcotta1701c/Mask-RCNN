@@ -54,7 +54,7 @@ import shutil
 
 # Root directory of the project
 # ROOT_DIR = os.path.abspath("../../")
-ROOT_DIR = os.path.abspath("/content/Mask-RCNN")  # Colab-specific root directory
+ROOT_DIR = os.path.abspath("/content")  # Colab-specific root directory
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
@@ -339,7 +339,7 @@ if __name__ == '__main__':
 
     # Configurations
     if args.command == "train":
-        config = Config()
+        config = ChromosomeConfig()
     else:
         class InferenceConfig(ChromosomeConfig):
             # Set batch size to 1 since we'll be running inference on
