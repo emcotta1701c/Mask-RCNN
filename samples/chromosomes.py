@@ -143,7 +143,7 @@ class ChromosomeDataset(utils.Dataset):
 
         # If not a COCO image, delegate to parent class.
         if image_info["source"] != "microscopy":
-            return super(ChromosomesDataset, self).load_mask(image_id)
+            return super(ChromosomeDataset, self).load_mask(image_id)
 
         image_info = self.image_info[image_id]
         instance_masks = []
@@ -339,9 +339,9 @@ if __name__ == '__main__':
 
     # Configurations
     if args.command == "train":
-        config = ChromosomesConfig()
+        config = Config()
     else:
-        class InferenceConfig(ChromosomesConfig):
+        class InferenceConfig(ChromosomeConfig):
             # Set batch size to 1 since we'll be running inference on
             # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
             GPU_COUNT = 1
@@ -378,12 +378,12 @@ if __name__ == '__main__':
     if args.command == "train":
         # Training dataset. Use the training set and 35K from the
         # validation set, as as in the Mask RCNN paper.
-        dataset_train = ChromosomesDataset()
+        dataset_train = ChromosomeDataset()
         dataset_train.load_chromosomes(args.dataset, "train")
         dataset_train.prepare()
 
         # Validation dataset
-        dataset_val = ChromosomesDataset()
+        dataset_val = ChromosomeDataset()
         dataset_val.load_chromosomes(args.dataset, "val")
         dataset_val.prepare()
 
@@ -421,7 +421,7 @@ if __name__ == '__main__':
 
     elif args.command == "evaluate":
         # Validation dataset
-        dataset_val = ChromosomesDataset()
+        dataset_val = ChromosomeDataset()
         coco = dataset_val.load_chromosomes(args.dataset, "val")
         dataset_val.prepare()
 
