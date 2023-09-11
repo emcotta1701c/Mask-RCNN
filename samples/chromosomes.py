@@ -12,19 +12,19 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
        the command line as such:
 
     # Train a new model starting from pre-trained COCO weights
-    python3 coco.py train --dataset=/path/to/coco/ --model=coco
+    python3 chromosomes.py train --dataset=/path/to/coco/ --model=coco
 
-    # Train a new model starting from ImageNet weights. Also auto download COCO dataset
-    python3 coco.py train --dataset=/path/to/coco/ --model=imagenet --download=True
+    # Train a new model starting from ImageNet weights.
+    python3 chromosomes.py train --dataset=/path/to/dataset/ --model=imagenet
 
     # Continue training a model that you had trained earlier
-    python3 coco.py train --dataset=/path/to/coco/ --model=/path/to/weights.h5
+    python3 chromosomes.py train --dataset=/path/to/dataset/ --model=/path/to/weights.h5
 
     # Continue training the last model you trained
-    python3 coco.py train --dataset=/path/to/coco/ --model=last
+    python3 chromosomes.py train --dataset=/path/to/dataset/ --model=last
 
-    # Run COCO evaluation on the last model you trained
-    python3 coco.py evaluate --dataset=/path/to/coco/ --model=last
+    # Run evaluation on the last model you trained
+    python3 chromosomes.py evaluate --dataset=/path/to/dataset/ --model=last
 """
 
 import os
@@ -74,12 +74,9 @@ DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
 
 class ChromosomeConfig(Config):
-    """Configuration for training on MS COCO.
-    Derives from the base Config class and overrides values specific
-    to the COCO dataset.
-    """
+
     # Give the configuration a recognizable name
-    NAME = "chromosomes"
+    NAME = "microscopy"
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
@@ -253,7 +250,7 @@ def build_coco_results(dataset, image_ids, rois, class_ids, scores, masks):
     return results
 
 
-def evaluate_coco(model, dataset, coco, eval_type="bbox", limit=0, image_ids=None):
+def evaluate_chromosomes(model, dataset, coco, eval_type="bbox", limit=0, image_ids=None):
     """Runs official COCO evaluation.
     dataset: A Dataset object with valiadtion data
     eval_type: "bbox" or "segm" for bounding box or segmentation evaluation
@@ -381,16 +378,13 @@ if __name__ == '__main__':
     if args.command == "train":
         # Training dataset. Use the training set and 35K from the
         # validation set, as as in the Mask RCNN paper.
-        dataset_train = CocoDataset()
-        dataset_train.load_coco(args.dataset, "train", year=args.year, auto_download=args.download)
-        if args.year in '2014':
-            dataset_train.load_coco(args.dataset, "valminusminival", year=args.year, auto_download=args.download)
+        dataset_train = ChromosomesDataset()
+        dataset_train.load_chromosomes(args.dataset, "train")
         dataset_train.prepare()
 
         # Validation dataset
-        dataset_val = CocoDataset()
-        val_type = "val" if args.year in '2017' else "minival"
-        dataset_val.load_coco(args.dataset, val_type, year=args.year, auto_download=args.download)
+        dataset_val = ChromosomesDataset()
+        dataset_val.load_chromosomes(args.dataset, "val")
         dataset_val.prepare()
 
         # Image Augmentation
@@ -428,17 +422,12 @@ if __name__ == '__main__':
     elif args.command == "evaluate":
         # Validation dataset
         dataset_val = ChromosomesDataset()
-        val_type = "val" if args.year in '2017' else "minival"
-        coco = dataset_val.load_coco(args.dataset, val_type, year=args.year, return_coco=True, auto_download=args.download)
+        coco = dataset_val.load_chromosomes(args.dataset, "val")
         dataset_val.prepare()
-        print("Running COCO evaluation on {} images.".format(args.limit))
-        evaluate_coco(model, dataset_val, coco, "bbox", limit=int(args.limit))
 
         # Compute VOC-Style mAP @ IoU=0.5
-        # Running on 10 images. Increase for better accuracy.
-        image_ids = np.random.choice(dataset_val.image_ids, 10)
         APs = []
-        for image_id in image_ids:
+        for image_id in dataset_val.image_ids:
             # Load image and ground truth data
             image, image_meta, gt_class_id, gt_bbox, gt_mask =\
                 modellib.load_image_gt(dataset_val, inference_config,
