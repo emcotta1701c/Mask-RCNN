@@ -145,6 +145,7 @@ class ChromosomeDataset(utils.Dataset):
         image_info = self.image_info[image_id]
         # If not a COCO image, delegate to parent class.
         if image_info["source"] != "microscopy":
+            print("\nError: image source is not microscopy. Can not load mask.")
             return super(ChromosomeDataset, self).load_mask(image_id)
 
         instance_masks = []
