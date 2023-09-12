@@ -1810,8 +1810,8 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                 b = 0
         except (GeneratorExit, KeyboardInterrupt):
             #delete later
-            print("GeneratorExit raised. Exiting while loop.")
-            
+            print("GeneratorExit or KeyboardInterrupt raised. Exiting while loop.")
+
             raise
         except:
             # Log it and skip the image
