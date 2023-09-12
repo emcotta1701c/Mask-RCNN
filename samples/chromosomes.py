@@ -125,7 +125,7 @@ class ChromosomeDataset(utils.Dataset):
             image_id = image_id.split('.')[0]   # do not use '.' is filename
             # path=os.path.join(image_dir, "{}.png".format(image_id))
             path=os.path.join(image_dir, "{}.tif".format(image_id))
-            ann_path = os.path.join(dataset_dir, "/annotations/", "{}.json".format(image_id))
+            ann_path = os.path.join(ann_dir, "{}.json".format(image_id))
             self.add_image("microscopy", image_id=image_id, path=path, annotations=ann_path)
 
 
@@ -146,7 +146,7 @@ class ChromosomeDataset(utils.Dataset):
         # If not a COCO image, delegate to parent class.
         if image_info["source"] != "microscopy":
             return super(ChromosomeDataset, self).load_mask(image_id)
-        
+
         instance_masks = []
         class_ids = []
         
