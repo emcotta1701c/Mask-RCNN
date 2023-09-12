@@ -91,6 +91,7 @@ class ChromosomeConfig(Config):
 
     # Overriding default Config values
     VALIDATION_STEPS = 2
+    STEPS_PER_EPOCH = 3
     IMAGE_RESIZE_MODE = "pad64"
     IMAGE_MIN_DIM = 2048
     IMAGE_MAX_DIM = 2048
