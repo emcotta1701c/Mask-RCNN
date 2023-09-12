@@ -395,18 +395,38 @@ if __name__ == '__main__':
     if args.command == "train":
         # Training dataset. Use the training set and 35K from the
         # validation set, as as in the Mask RCNN paper.
+
+        #delete later
+        print("Instantiating ChromosomeDataset()")
+
         dataset_train = ChromosomeDataset()
+        #delete later
+        print("Calling dataset_train.load_chromosomes()")
+
         dataset_train.load_chromosomes(args.dataset, "train")
+
+        #delete later
+        print("Preparing dataset...")
+
         dataset_train.prepare()
+
+        #delete later
+        print("Now, doing same for validation dataset.")
 
         # Validation dataset
         dataset_val = ChromosomeDataset()
         dataset_val.load_chromosomes(args.dataset, "val")
         dataset_val.prepare()
 
+        #delete later
+        print("Done preparing validation set.")
+
         # Image Augmentation
         # Right/Left flip 50% of the time
         augmentation = imgaug.augmenters.Fliplr(0.5)
+
+        #delete later
+        print("Image augmentation complete, now running model.train()")
 
         # *** This training schedule is an example. Update to your needs ***
 
@@ -419,6 +439,7 @@ if __name__ == '__main__':
                     layers='heads',
                     augmentation=augmentation)
         """
+
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
                     epochs=1,

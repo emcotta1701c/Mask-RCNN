@@ -2401,6 +2401,10 @@ class MaskRCNN():
             workers=workers,
             use_multiprocessing=True,
         )
+
+        #delete later
+        print("Finished calling fit_generator()")
+
         self.epoch = max(self.epoch, epochs)
 
     def mold_inputs(self, images):
