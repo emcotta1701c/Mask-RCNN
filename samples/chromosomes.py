@@ -160,10 +160,6 @@ class ChromosomeDataset(utils.Dataset):
         image_height = file_info["height"]
         image_width = file_info["width"]
 
-        # delete later
-        print("\nImage height:", image_height)
-        print("Image weight:", image_width)
-
         for annotation in annotations:
             class_id = annotation['category_id']
             if class_id:
