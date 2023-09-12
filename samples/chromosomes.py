@@ -152,17 +152,17 @@ class ChromosomeDataset(utils.Dataset):
         
         fobj = open(image_info["annotations"], 'r')
         ann_file = json.load(fobj)
-        file_info = ann_file["images"]
+        file_info = ann_file["images"][0]
         annotations = ann_file["annotations"]
 
         # Build mask of shape [height, width, instance_count] and list
         # of class IDs that correspond to each channel of the mask.
-        image_height = file_info[2]
-        image_width = file_info[1]
-        
+        image_height = file_info["height"]
+        image_width = file_info["width"]
+
         # delete later
         print("\nImage height:", image_height)
-        print("Image weight:", image_weight)
+        print("Image weight:", image_width)
 
         for annotation in annotations:
             class_id = annotation['category_id']
