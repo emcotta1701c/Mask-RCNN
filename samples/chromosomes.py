@@ -80,13 +80,22 @@ class ChromosomeConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2  # change later
+    # IMAGES_PER_GPU = 2  # change later
+    IMAGES_PER_GPU = 1
 
     # Uncomment to train on 8 GPUs (default is 1)
     # GPU_COUNT = 8
 
     # Number of classes (including background)
     NUM_CLASSES = 1 + 3  # chromosome, cluster, other
+
+    # Overriding default Config values
+    VALIDATION_STEPS = 2
+    IMAGE_RESIZE_MODE = "pad64"
+    IMAGE_MIN_DIM = 2048
+    IMAGE_MAX_DIM = 2048
+    IMAGE_CHANNEL_COUNT = 1
+    MEAN_PIXEL = np.array([255/2.0])
 
 
 ############################################################

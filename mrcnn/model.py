@@ -2333,6 +2333,9 @@ class MaskRCNN():
         if layers in layer_regex.keys():
             layers = layer_regex[layers]
 
+        #delete later
+        print("Batch size:", config.batch_size)
+
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
                                          augmentation=augmentation,
@@ -2370,6 +2373,9 @@ class MaskRCNN():
             workers = 0
         else:
             workers = multiprocessing.cpu_count()
+        
+        #delete later
+        print("Calling fit_generator(), with validation_steps = ", self.config.VALIDATION_STEPS)
 
         self.keras_model.fit_generator(
             train_generator,
