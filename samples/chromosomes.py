@@ -118,13 +118,13 @@ class ChromosomeDataset(utils.Dataset):
         # image_ids = next(os.walk(dataset_dir)[1])
         image_ids = []
         for file in os.listdir(image_dir):
-            if os.path.isfile(file):
-                image_ids.append(file)
+            image_ids.append(file)
 
         # Add images - should be .png, maybe .tif or .tiff ok too
         for image_id in image_ids:
-            path=os.path.join(image_dir, "{}.png".format(image_id))
-            ann_path = os.path.join(dataset_dir, "/annotations/")
+            # path=os.path.join(image_dir, "{}.png".format(image_id))
+            path=os.path.join(image_dir, "{}.tif".format(image_id))
+            ann_path = os.path.join(dataset_dir, "/annotations/", "{}.json".format(image_id))
             self.add_image("microscopy", image_id=image_id, path=path, annotations=ann_path)
 
 
