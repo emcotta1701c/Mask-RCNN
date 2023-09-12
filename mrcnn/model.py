@@ -1687,8 +1687,13 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
     # Keras requires a generator to run indefinitely.
     while True:
+        
         #delete later
-        print("\nKeras DataGenerator, top of while loop.")
+        print("\ndata_generator(), top of while loop.")
+        print("length of image_ids list (3?):", len(image_ids))
+        print("image_index:", image_index)
+        print("Batch size b+1:", b)
+        print()
 
         try:
             # Increment index to pick next image. Shuffle if at the start of an epoch.
@@ -1698,9 +1703,6 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
             # Get GT bounding boxes and masks for image.
             image_id = image_ids[image_index]
-
-            #delete later
-            print("\nKeras DataGenerator is calling load_mask through load_image_gt.")
 
             # If the image source is not to be augmented pass None as augmentation
             if dataset.image_info[image_id]['source'] in no_augmentation_sources:
@@ -2336,13 +2338,23 @@ class MaskRCNN():
         #delete later
         print("Batch size:", config.batch_size)
 
+        #delete later
+        print("Building train_generator...")
+
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
                                          augmentation=augmentation,
                                          batch_size=self.config.BATCH_SIZE,
                                          no_augmentation_sources=no_augmentation_sources)
+
+        #delete later
+        print("Finished defining train_generator, now defining val_generator.")
+
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
+        
+        #delete later
+        print("Finished defining val_generator.")
 
         # Create log_dir if it does not exist
         if not os.path.exists(self.log_dir):
