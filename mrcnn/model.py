@@ -2336,7 +2336,7 @@ class MaskRCNN():
             layers = layer_regex[layers]
 
         #delete later
-        print("Batch size:", self.config.batch_size)
+        print("Batch size:", self.config.BATCH_SIZE)
 
         #delete later
         print("Building train_generator...")
