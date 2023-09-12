@@ -142,11 +142,11 @@ class ChromosomeDataset(utils.Dataset):
         class_ids: a 1D array of class IDs of the instance masks.
         """
 
+        image_info = self.image_info[image_id]
         # If not a COCO image, delegate to parent class.
         if image_info["source"] != "microscopy":
             return super(ChromosomeDataset, self).load_mask(image_id)
-
-        image_info = self.image_info[image_id]
+        
         instance_masks = []
         class_ids = []
         
