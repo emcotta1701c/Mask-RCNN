@@ -1687,7 +1687,7 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
     # Keras requires a generator to run indefinitely.
     while True:
-        
+
         #delete later
         print("\ndata_generator(), top of while loop.")
         print("length of image_ids list (3?):", len(image_ids))
@@ -2336,7 +2336,7 @@ class MaskRCNN():
             layers = layer_regex[layers]
 
         #delete later
-        print("Batch size:", config.batch_size)
+        print("Batch size:", self.config.batch_size)
 
         #delete later
         print("Building train_generator...")
