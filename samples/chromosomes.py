@@ -157,8 +157,13 @@ class ChromosomeDataset(utils.Dataset):
 
         # Build mask of shape [height, width, instance_count] and list
         # of class IDs that correspond to each channel of the mask.
-        image_height = file_info["height"]
-        image_width = file_info["width"]
+        image_height = file_info[2]
+        image_width = file_info[1]
+        
+        # delete later
+        print("\nImage height:", image_height)
+        print("Image weight:", image_weight)
+
         for annotation in annotations:
             class_id = annotation['category_id']
             if class_id:
