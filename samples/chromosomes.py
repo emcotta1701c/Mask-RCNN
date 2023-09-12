@@ -141,17 +141,19 @@ class ChromosomeDataset(utils.Dataset):
             one mask per instance.
         class_ids: a 1D array of class IDs of the instance masks.
         """
+        #delete later
+        print("Debugging: At start of load_mask function.")
 
-        image_info = self.image_info[image_id]
+        info = self.image_info[image_id]
         # If not a COCO image, delegate to parent class.
-        if image_info["source"] != "microscopy":
+        if info["source"] != "microscopy":
             print("\nError: image source is not microscopy. Can not load mask.")
             return super(ChromosomeDataset, self).load_mask(image_id)
 
         instance_masks = []
         class_ids = []
         
-        fobj = open(image_info["annotations"], 'r')
+        fobj = open(info["annotations"], 'r')
         ann_file = json.load(fobj)
         file_info = ann_file["images"][0]
         annotations = ann_file["annotations"]
@@ -180,6 +182,9 @@ class ChromosomeDataset(utils.Dataset):
                         m = np.ones([image_height, image_width], dtype=bool)
                 instance_masks.append(m)
                 class_ids.append(class_id)
+
+        #delete later
+        print("Debugging: At end of load_mask function.")
 
         # Pack instance masks into an array
         if class_ids:

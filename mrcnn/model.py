@@ -1687,6 +1687,9 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
     # Keras requires a generator to run indefinitely.
     while True:
+        #delete later
+        print("\nKeras DataGenerator, top of while loop.")
+
         try:
             # Increment index to pick next image. Shuffle if at the start of an epoch.
             image_index = (image_index + 1) % len(image_ids)
@@ -1695,6 +1698,9 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
             # Get GT bounding boxes and masks for image.
             image_id = image_ids[image_index]
+
+            #delete later
+            print("\nKeras DataGenerator is calling load_mask through load_image_gt.")
 
             # If the image source is not to be augmented pass None as augmentation
             if dataset.image_info[image_id]['source'] in no_augmentation_sources:
@@ -1803,11 +1809,15 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                 # start a new batch
                 b = 0
         except (GeneratorExit, KeyboardInterrupt):
+            #delete later
+            print("GeneratorExit raised. Exiting while loop.")
+            
             raise
         except:
             # Log it and skip the image
             logging.exception("Error processing image {}".format(
                 dataset.image_info[image_id]))
+            print("\nError processing image {}".format(dataset.image_info[image_id]))
             error_count += 1
             if error_count > 5:
                 raise
