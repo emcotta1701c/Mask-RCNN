@@ -2389,7 +2389,7 @@ class MaskRCNN():
         #delete later
         print("Calling fit_generator()")
         print("fit_generator() params:")
-        print("Epochs:", self.epochs)
+        print("Epochs:", epochs)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
 
