@@ -109,9 +109,9 @@ class ChromosomeConfig(Config):
 
 class ChromosomeDataset(utils.Dataset):
     def load_chromosomes(self, dataset_dir, subset):
-        """Load a subset of the COCO dataset.
+        """
         dataset_dir: The root directory of the COCO dataset.
-        subset: What to load (train, val, minival, valminusminival)
+        subset: What to load (train, val)
         """
 
         # Train or validation dataset?
@@ -130,7 +130,7 @@ class ChromosomeDataset(utils.Dataset):
         # Get image ids from chromosome image file names
         # image_ids = next(os.walk(dataset_dir)[1])
         image_ids = []
-        for file in os.listdir(image_dir):
+        for file in next(os.walk(image_dir)[1]):
             image_ids.append(file)
 
         # Add images - should be .png, maybe .tif or .tiff ok too
