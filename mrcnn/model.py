@@ -1221,7 +1221,7 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
 
     #delete later
     print("Just resized images and masks.")
-    print("Resized image shape:", np.shape(image))
+    print("Resized image shape (should be 3d not 2d array):", np.shape(image))
     print("(?) Resized window shape:", np.shape(window))
     print("Resized mask shape:", np.shape(mask))
 
@@ -2126,6 +2126,10 @@ class MaskRCNN():
         some layers from loading.
         exclude: list of layer names to exclude
         """
+
+        #delete later
+        print("Calling load_weights().")
+
         import h5py
         # Conditional import to support versions of Keras before 2.2
         # TODO: remove in about 6 months (end of 2018)

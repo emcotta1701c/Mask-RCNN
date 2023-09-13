@@ -95,8 +95,8 @@ class ChromosomeConfig(Config):
     IMAGE_RESIZE_MODE = "square"
     IMAGE_MIN_DIM = 2048
     IMAGE_MAX_DIM = 2048
-    # IMAGE_CHANNEL_COUNT = 1   # implement this later
-    # MEAN_PIXEL = np.array([255/2.0])  # implement this later
+    IMAGE_CHANNEL_COUNT = 1   # implement this later
+    MEAN_PIXEL = np.array([255/2.0])  # implement this later
     USE_MINI_MASK = False
     MASK_SHAPE = [28, 28]   # change later
     MAX_GT_INSTANCES = 100
