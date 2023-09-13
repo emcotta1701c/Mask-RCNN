@@ -2157,15 +2157,6 @@ class MaskRCNN():
         keras_model = self.keras_model
         layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
             else keras_model.layers
-        
-        #delete later
-        print("Printing own layers.")
-        for layer in layers:
-            print(layer)
-        print()
-        print("Printing .h5 file's layers:")
-        for layer in f:
-            print(layer)
 
         # Exclude some layers
         if exclude:
