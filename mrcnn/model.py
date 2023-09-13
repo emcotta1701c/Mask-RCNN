@@ -1676,6 +1676,13 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
     error_count = 0
     no_augmentation_sources = no_augmentation_sources or []
 
+    #delete later
+    print("At top of generator, before loop.")
+    print("List of image_ids used in generator:")
+    for image_id in image_ids:
+        print(image_id)
+    print()
+
     # Anchors
     # [anchor_count, (y1, x1, y2, x2)]
     backbone_shapes = compute_backbone_shapes(config, config.IMAGE_SHAPE)
@@ -1692,7 +1699,7 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
         print("\ndata_generator(), top of while loop.")
         print("length of image_ids list (3?):", len(image_ids))
         print("image_index:", image_index)
-        print("Batch size b+1:", b)
+        print("Batch size b+1:", b+1)
         print()
 
         try:
@@ -1805,6 +1812,9 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                             batch_mrcnn_class_ids, -1)
                         outputs.extend(
                             [batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask])
+
+                #delete later
+                print("Yielding inputs and outputs in generator.")
 
                 yield inputs, outputs
 
