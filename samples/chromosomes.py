@@ -92,7 +92,7 @@ class ChromosomeConfig(Config):
     # Overriding default Config values
     VALIDATION_STEPS = 2
     STEPS_PER_EPOCH = 2
-    IMAGE_RESIZE_MODE = "pad64"
+    IMAGE_RESIZE_MODE = "square"
     IMAGE_MIN_DIM = 2048
     IMAGE_MAX_DIM = 2048
     # IMAGE_CHANNEL_COUNT = 1   # implement this later
