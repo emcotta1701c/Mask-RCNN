@@ -1703,8 +1703,8 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
         #delete later
         print("\ndata_generator(), top of while loop.")
-        print("length of image_ids list (3?):", len(image_ids))
-        print("image_index:", image_index)
+        print("length of image_ids list (4?):", len(image_ids))
+        print("image_index:", image_index+1)
         print("Batch size b+1:", b+1)
         print()
 
@@ -2169,10 +2169,18 @@ class MaskRCNN():
         Returns path to weights file.
         """
         from keras.utils.data_utils import get_file
+        """
+        # Try this for Resnet_101, or else many layers will be randomly initialized
+        TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/keras-team/keras-applications/'\
+                                'releases/tag/resnet/'\
+                                'resnet101_weights_tf_dim_ordering_tf_kernels_notop.h5'
+        MODEL_NAME = 'resnet101_weights_tf_dim_ordering_tf_kernels_notop.h5'
+        """
+        MODEL_NAME = 'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/'\
                                  'releases/download/v0.2/'\
                                  'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-        weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
+        weights_path = get_file(MODEL_NAME,
                                 TF_WEIGHTS_PATH_NO_TOP,
                                 cache_subdir='models',
                                 md5_hash='a268eb855778b3df3c7506639542a6af')
