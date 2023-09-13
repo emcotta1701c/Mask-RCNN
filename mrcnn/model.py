@@ -2128,7 +2128,7 @@ class MaskRCNN():
         """
 
         #delete later
-        print("Calling load_weights().")
+        print("At top of load_weights().")
 
         import h5py
         # Conditional import to support versions of Keras before 2.2
@@ -2153,6 +2153,15 @@ class MaskRCNN():
         keras_model = self.keras_model
         layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
             else keras_model.layers
+        
+        #delete later
+        print("Printing own layers.")
+        for layer in layers:
+            print(layer, ": ", np.size(layer.get_weights()))
+        print()
+        print("Printing .h5 file's layers:")
+        for key in layers:
+            print(key, ": ", layers[key])
 
         # Exclude some layers
         if exclude:
