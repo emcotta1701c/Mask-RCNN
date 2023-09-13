@@ -2157,11 +2157,11 @@ class MaskRCNN():
         #delete later
         print("Printing own layers.")
         for layer in layers:
-            print(layer, ": ", np.size(layer.get_weights()))
+            print(layer)
         print()
         print("Printing .h5 file's layers:")
-        for key in layers:
-            print(key, ": ", layers[key])
+        for layer in f:
+            print(layer)
 
         # Exclude some layers
         if exclude:
