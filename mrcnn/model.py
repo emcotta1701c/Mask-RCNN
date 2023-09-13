@@ -1219,6 +1219,12 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
         mode=config.IMAGE_RESIZE_MODE)
     mask = utils.resize_mask(mask, scale, padding, crop)
 
+    #delete later
+    print("Just resized images and masks.")
+    print("Resized image shape:", np.shape(image))
+    print("(?) Resized window shape:", np.shape(window))
+    print("Resized mask shape:", np.shape(mask))
+
     # Random horizontal flips.
     # TODO: will be removed in a future update in favor of augmentation
     if augment:
