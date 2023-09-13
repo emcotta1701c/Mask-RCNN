@@ -177,7 +177,7 @@ def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
     x = KL.ZeroPadding2D((3, 3))(input_image)
-    input_dim = input_image.size()
+    input_dim = input_image.shape
     input_dim[0] += 6
     input_dim[1] += 6
     input_dim[2] = 1
