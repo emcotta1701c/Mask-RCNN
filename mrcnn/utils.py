@@ -355,6 +355,7 @@ class Dataset(object):
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
         """
+        """
         # Load image
         image = skimage.io.imread(self.image_info[image_id]['path'])
         # If grayscale. Convert to RGB for consistency.
@@ -364,6 +365,20 @@ class Dataset(object):
         if image.shape[-1] == 4:
             image = image[..., :3]
         return image
+        """
+
+        # Loading for [H,W,1] array.
+        # Load image
+        image = skimage.io.imread(self.image_info[image_id]['path'], as_gray=True)
+        # If grayscale. Convert to RGB for consistency.
+        if image.ndim != 1:
+            print("utils.load_image(): Error, ndim != 1. Expecting grayscale image.")
+        
+        #delete later
+        print("load_image(), image shape:", image.shape())
+
+        return image
+        
 
     def load_mask(self, image_id):
         """Load instance masks for the given image.
