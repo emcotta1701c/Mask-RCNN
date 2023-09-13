@@ -2406,8 +2406,10 @@ class MaskRCNN():
         print("Calling fit_generator()")
         print("fit_generator() params:")
         print("Epochs:", epochs)
+        print("Initial_epoch:", self.epoch)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
+        print("Workers:", workers)
 
         self.keras_model.fit_generator(
             train_generator,
@@ -2419,7 +2421,7 @@ class MaskRCNN():
             validation_steps=self.config.VALIDATION_STEPS,
             max_queue_size=100,
             workers=workers,
-            use_multiprocessing=True,
+            use_multiprocessing=False,  # befeore, use_multiprocessing=True
         )
 
         #delete later
