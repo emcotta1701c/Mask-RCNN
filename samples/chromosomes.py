@@ -130,7 +130,7 @@ class ChromosomeDataset(utils.Dataset):
         # Get image ids from chromosome image file names
         # image_ids = next(os.walk(dataset_dir)[1])
         image_ids = []
-        for file in next(os.walk(image_dir)[1]):
+        for file in os.walk(image_dir).next()[2]):
             image_ids.append(file)
 
         # Add images - should be .png, maybe .tif or .tiff ok too
