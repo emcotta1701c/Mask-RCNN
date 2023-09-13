@@ -99,6 +99,7 @@ class ChromosomeConfig(Config):
     # MEAN_PIXEL = np.array([255/2.0])  # implement this later
     USE_MINI_MASK = False
     MASK_SHAPE = [28, 28]   # change later
+    MAX_GT_INSTANCES = 100
 
 
 ############################################################
