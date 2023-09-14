@@ -90,7 +90,7 @@ class ChromosomeConfig(Config):
     NUM_CLASSES = 1 + 3  # chromosome, cluster, other
 
     # Overriding default Config values
-    VALIDATION_STEPS = 2
+    VALIDATION_STEPS = 1
     STEPS_PER_EPOCH = 2
     IMAGE_RESIZE_MODE = "square"
     IMAGE_MIN_DIM = 2048
