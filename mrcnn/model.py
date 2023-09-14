@@ -1029,7 +1029,9 @@ def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
     #here, gt_bboxes=y_true, and pr_bboxes=y_pred
     #Adioc loss implementation
     #Source: https://github.com/CoinCheung/pytorch-loss/blob/master/generalized_iou_loss.py
-    
+
+    import torch
+
     gt_area = (gt_bboxes[:, 2]-gt_bboxes[:, 0])*(gt_bboxes[:, 3]-gt_bboxes[:, 1])
     pr_area = (pr_bboxes[:, 2]-pr_bboxes[:, 0])*(pr_bboxes[:, 3]-pr_bboxes[:, 1])
 
