@@ -375,6 +375,8 @@ class Dataset(object):
         #delete later
         print("load_image(), image type:", type(image))
         print("load_image(), image shape:", image.shape)
+        if len(image.shape) != 3 or image.shape[2] != 1:
+            print("Error in load_image(), not given a grayscale image.")
 
         return image
         
