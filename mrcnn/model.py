@@ -177,7 +177,7 @@ def resnet_graph(input_image, architecture, input_side, stage5=False, train_bn=T
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
     x = tf.keras.layers.ZeroPadding2D(padding=(3, 3),
-                                    input_shape=(input_side, input_side, 1), data_format="channels_last")
+                                    input_shape=(input_side, input_side, 1), data_format="channels_last")(input_image)
     x = KL.Conv2D(64, (7, 7), strides=(2, 2), name='conv1', use_bias=True)(x)
     x = BatchNorm(name='bn_conv1')(x, training=train_bn)
     x = KL.Activation('relu')(x)
