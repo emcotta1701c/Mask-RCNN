@@ -392,16 +392,18 @@ if __name__ == '__main__':
         model_path = args.model
 
     # Load weights
-    # Whenever runs train function, lose all previous training progress on mrcnn heads
+    # If train command, lose all previous training progress on mrcnn heads
+    # If eval command, does not exclude heads.
     # Run training only once, not multiple times, and just run for many epochs
     print("Loading weights ", model_path)
-    model.load_weights(model_path, by_name=True,
-                    exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
     # Train or evaluate
     if args.command == "train":
         # Training dataset. Use the training set and 35K from the
         # validation set, as as in the Mask RCNN paper.
+
+        model.load_weights(model_path, by_name=True,
+                    exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
         #delete later
         print("Instantiating ChromosomeDataset()")
@@ -486,6 +488,8 @@ if __name__ == '__main__':
                     augmentation=augmentation)
 
     elif args.command == "evaluate":
+        model.load_weights(model_path, by_name=True)
+
         # Validation dataset
         dataset_val = ChromosomeDataset()
         coco = dataset_val.load_chromosomes(args.dataset, "val")

@@ -2429,7 +2429,7 @@ class MaskRCNN():
         print("Initial_epoch:", self.epoch)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
-        print("Workers:", workers)
+        print("Workers (hardcoded to 1 for now regardless of #):", workers)
 
         self.keras_model.fit_generator(
             train_generator,
