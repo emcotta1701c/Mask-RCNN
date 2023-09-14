@@ -1023,6 +1023,40 @@ def smooth_l1_loss(y_true, y_pred):
     loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
     return loss
 
+def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
+    #on website, reduction default is 'mean'
+    #y_true and y_pred are typically: [N, 4], but could be any shape.
+    #here, gt_bboxes=y_true, and pr_bboxes=y_pred
+    #Adioc loss implementation
+    #Source: https://github.com/CoinCheung/pytorch-loss/blob/master/generalized_iou_loss.py
+    
+    gt_area = (gt_bboxes[:, 2]-gt_bboxes[:, 0])*(gt_bboxes[:, 3]-gt_bboxes[:, 1])
+    pr_area = (pr_bboxes[:, 2]-pr_bboxes[:, 0])*(pr_bboxes[:, 3]-pr_bboxes[:, 1])
+
+    # iou
+    lt = torch.max(gt_bboxes[:, :2], pr_bboxes[:, :2])
+    rb = torch.min(gt_bboxes[:, 2:], pr_bboxes[:, 2:])
+    TO_REMOVE = 1
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)
+    inter = wh[:, 0] * wh[:, 1]
+    union = gt_area + pr_area - inter
+    iou = inter / union
+    # enclosure
+    lt = torch.min(gt_bboxes[:, :2], pr_bboxes[:, :2])
+    rb = torch.max(gt_bboxes[:, 2:], pr_bboxes[:, 2:])
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)
+    enclosure = wh[:, 0] * wh[:, 1]
+
+    giou = iou - (enclosure-union)/enclosure
+    loss = 1. - giou
+    if reduction == 'mean':
+        loss = loss.mean()
+    elif reduction == 'sum':
+        loss = loss.sum()
+    elif reduction == 'none':
+        pass
+    return loss
+
 
 def rpn_class_loss_graph(rpn_match, rpn_class_logits):
     """RPN anchor classifier loss.
