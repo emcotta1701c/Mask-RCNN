@@ -271,12 +271,20 @@ class ProposalLayer(KL.Layer):
     Returns:
         Proposals in normalized coordinates [batch, rois, (y1, x1, y2, x2)]
     """
-
+    """
     def __init__(self, proposal_count, nms_threshold, config=None, **kwargs):
         super(ProposalLayer, self).__init__(**kwargs)
         self.config = config
         self.proposal_count = proposal_count
         self.nms_threshold = nms_threshold
+    """
+    # soft nms
+    def __init__(self, proposal_count, soft_nms_threshold, soft_nms_sigma, config=None, **kwargs):
+        super(ProposalLayer, self).__init__(**kwargs)
+        self.config = config
+        self.proposal_count = proposal_count
+        self.soft_nms_threshold = soft_nms_threshold
+        self.soft_nms_sigma = soft_nms_sigma
 
     def call(self, inputs):
         # Box Scores. Use the foreground class confidence. [Batch, num_rois, 1]
@@ -319,6 +327,7 @@ class ProposalLayer(KL.Layer):
         # According to Xinlei Chen's paper, this reduces detection accuracy
         # for small objects, so we're skipping it.
 
+        """
         # Non-max suppression
         def nms(boxes, scores):
             indices = tf.image.non_max_suppression(
@@ -329,7 +338,23 @@ class ProposalLayer(KL.Layer):
             padding = tf.maximum(self.proposal_count - tf.shape(proposals)[0], 0)
             proposals = tf.pad(proposals, [(0, padding), (0, 0)])
             return proposals
+        """
+        # Soft-NMS
+        def soft_nms(boxes, scores):
+            indices, _ = tf.image.non_max_suppression_with_scores(
+                boxes, scores, self.proposal_count,
+                self.soft_nms_threshold, self.soft_nms_sigma, name="rpn_soft_non_max_suppression")
+            proposals = tf.gather(boxes, indices)
+            # Pad if needed
+            padding = tf.maximum(self.proposal_count - tf.shape(proposals)[0], 0)
+            proposals = tf.pad(proposals, [(0, padding), (0, 0)])
+            return proposals
+        
+        """
         proposals = utils.batch_slice([boxes, scores], nms,
+                                      self.config.IMAGES_PER_GPU)
+        """
+        proposals = utils.batch_slice([boxes, scores], soft_nms,
                                       self.config.IMAGES_PER_GPU)
         return proposals
 
@@ -737,12 +762,23 @@ def refine_detections_graph(rois, probs, deltas, window, config):
         """Apply Non-Maximum Suppression on ROIs of the given class."""
         # Indices of ROIs of the given class
         ixs = tf.where(tf.equal(pre_nms_class_ids, class_id))[:, 0]
+        """
         # Apply NMS
         class_keep = tf.image.non_max_suppression(
                 tf.gather(pre_nms_rois, ixs),
                 tf.gather(pre_nms_scores, ixs),
                 max_output_size=config.DETECTION_MAX_INSTANCES,
                 iou_threshold=config.DETECTION_NMS_THRESHOLD)
+        """
+        # Soft-NMS
+        # Here, _ is the updated class scores.
+        class_keep, _ = tf.image.non_max_suppression_with_scores(
+                tf.gather(pre_nms_rois, ixs),
+                tf.gather(pre_nms_scores, ixs),
+                max_output_size=config.DETECTION_MAX_INSTANCES,
+                score_threshold=config.DETECTION_SOFTNMS_THRESHOLD,
+                soft_nms_sigma=config.DETECTION_SOFTNMS_SIGMA
+        )
         # Map indices
         class_keep = tf.gather(keep, tf.gather(ixs, class_keep))
         # Pad with -1 so returned tensors have the same shape
@@ -2030,11 +2066,21 @@ class MaskRCNN():
         # and zero padded.
         proposal_count = config.POST_NMS_ROIS_TRAINING if mode == "training"\
             else config.POST_NMS_ROIS_INFERENCE
+        """
         rpn_rois = ProposalLayer(
             proposal_count=proposal_count,
             nms_threshold=config.RPN_NMS_THRESHOLD,
             name="ROI",
             config=config)([rpn_class, rpn_bbox, anchors])
+        """
+        #Soft-NMS:
+        rpn_rois = ProposalLayer(
+            proposal_count=proposal_count,
+            soft_nms_threshold=config.RPN_SOFTNMS_THRESHOLD,
+            soft_nms_sigma=config.RPN_SOFTNMS_SIGMA,
+            name="ROI",
+            config=config)([rpn_class, rpn_bbox, anchors])
+        
 
         if mode == "training":
             # Class ID mask to mark class IDs supported by the dataset the image

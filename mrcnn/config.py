@@ -88,6 +88,10 @@ class Config(object):
     # You can increase this during training to generate more propsals.
     RPN_NMS_THRESHOLD = 0.7
 
+    # Soft-NMS params for RPN
+    RPN_SOFTNMS_THRESHOLD = 0.3
+    RPN_SOFTNMS_SIGMA = 0.5
+
     # How many anchors per image to use for RPN training
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
     
@@ -173,6 +177,10 @@ class Config(object):
 
     # Non-maximum suppression threshold for detection
     DETECTION_NMS_THRESHOLD = 0.3
+
+    # Soft-NMS parameters
+    DETECTION_SOFTNMS_THRESHOLD = 0.3
+    DETECTION_SOFTNMS_SIGMA = 0.5   # can also try 0.6, but 0.5 used by the researchers
 
     # Learning rate and momentum
     # The Mask RCNN paper uses lr=0.02, but on TensorFlow it causes
