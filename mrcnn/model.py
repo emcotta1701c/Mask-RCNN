@@ -168,7 +168,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block,
     return x
 
 
-def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
+def resnet_graph(input_image, architecture, input_side, stage5=False, train_bn=True):
     """Build a ResNet graph.
         architecture: Can be resnet50 or resnet101
         stage5: Boolean. If False, stage5 of the network is not created
@@ -176,7 +176,8 @@ def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
     """
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
-    x = KL.ZeroPadding2D((3, 3))(input_image)
+    # for input shape, using INPUT_MAX_DIM, not INPUT_MIN_DIM. INPUT_MAX_DIM must be same as INPUT_MIN_DIM
+    tf.keras.layers.ZeroPadding2D(padding=(3,3), input_shape=(input_side, input_side, 1), data_format="channels_last")
     x = KL.Conv2D(64, (7, 7), strides=(2, 2), name='conv1', use_bias=True)(x)
     x = BatchNorm(name='bn_conv1')(x, training=train_bn)
     x = KL.Activation('relu')(x)
@@ -1925,7 +1926,10 @@ class MaskRCNN():
             _, C2, C3, C4, C5 = config.BACKBONE(input_image, stage5=True,
                                                 train_bn=config.TRAIN_BN)
         else:
-            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE,
+            # INPUT_MIN_DIM must be INPUT_MAX_DIM - maybe not, but confusing otherwise
+            # Expects square image
+            assert config.INPUT_MIN_DIM == config.INPUT_MAX_DIM
+            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.INPUT_MAX_DIM,
                                              stage5=True, train_bn=config.TRAIN_BN)
         # Top-down Layers
         # TODO: add assert to varify feature map sizes match what's in config
