@@ -176,7 +176,7 @@ def resnet_graph(input_image, architecture, input_side, stage5=False, train_bn=T
     """
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
-    # for input shape, using INPUT_MAX_DIM, not INPUT_MIN_DIM. INPUT_MAX_DIM must be same as INPUT_MIN_DIM
+    # for input shape, using IMAGE_MAX_DIM, not IMAGE_MIN_DIM. IMAGE_MAX_DIM must be same as IMAGE_MIN_DIM
     tf.keras.layers.ZeroPadding2D(padding=(3,3), input_shape=(input_side, input_side, 1), data_format="channels_last")
     x = KL.Conv2D(64, (7, 7), strides=(2, 2), name='conv1', use_bias=True)(x)
     x = BatchNorm(name='bn_conv1')(x, training=train_bn)
@@ -1926,10 +1926,10 @@ class MaskRCNN():
             _, C2, C3, C4, C5 = config.BACKBONE(input_image, stage5=True,
                                                 train_bn=config.TRAIN_BN)
         else:
-            # INPUT_MIN_DIM must be INPUT_MAX_DIM - maybe not, but confusing otherwise
+            # IMAGE_MIN_DIM must be IMAGE_MAX_DIM - maybe not, but confusing otherwise
             # Expects square image
-            assert config.INPUT_MIN_DIM == config.INPUT_MAX_DIM
-            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.INPUT_MAX_DIM,
+            assert config.IMAGE_MIN_DIM == config.IMAGE_MAX_DIM
+            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              stage5=True, train_bn=config.TRAIN_BN)
         # Top-down Layers
         # TODO: add assert to varify feature map sizes match what's in config
