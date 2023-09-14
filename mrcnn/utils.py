@@ -375,7 +375,7 @@ class Dataset(object):
             print("utils.load_image(): Error, ndim != 1. Expecting grayscale image.")
         
         #delete later
-        print("load_image(), image shape:", image.shape())
+        print("load_image(), image shape:", image.shape)
 
         return image
         
