@@ -370,11 +370,13 @@ class Dataset(object):
         # Loading for [H,W,1] array.
         # Load image
         image = skimage.io.imread(self.image_info[image_id]['path'], as_gray=True)
+        image = image[..., np.newaxis()]
         # If grayscale. Convert to RGB for consistency.
         if image.ndim != 1:
             print("utils.load_image(): Error, ndim != 1. Expecting grayscale image.")
         
         #delete later
+        print("load_image(), image type:", type(image))
         print("load_image(), image shape:", image.shape)
 
         return image
