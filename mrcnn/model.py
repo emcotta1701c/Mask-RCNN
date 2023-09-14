@@ -2429,7 +2429,8 @@ class MaskRCNN():
         print("Initial_epoch:", self.epoch)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
-        print("Workers (hardcoded to 0 for now regardless of #):", workers)
+        print("Workers (hardcoded to 1 for now regardless of #):", workers)
+            # workers=0, can't read print stmts while generator running (infinitely which bad)
 
         self.keras_model.fit_generator(
             train_generator,
@@ -2439,8 +2440,8 @@ class MaskRCNN():
             callbacks=callbacks,
             validation_data=val_generator,
             validation_steps=self.config.VALIDATION_STEPS,
-            max_queue_size=100,
-            workers=0,  # before, workers=workers, but overwriting for now.
+            max_queue_size=2, # before, 100
+            workers=1,  # before, workers=workers, but overwriting for now.
             use_multiprocessing=False,  # before, use_multiprocessing=True
         )
 
