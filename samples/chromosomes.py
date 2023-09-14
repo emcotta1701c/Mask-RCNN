@@ -451,7 +451,7 @@ if __name__ == '__main__':
 
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=1,
+                    epochs=2,
                     layers='heads',
                     augmentation=augmentation)
 
@@ -467,7 +467,7 @@ if __name__ == '__main__':
         """
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE,
-                    epochs=1,
+                    epochs=2,
                     layers='4+',
                     augmentation=augmentation)
 
@@ -483,7 +483,7 @@ if __name__ == '__main__':
         """
         model.train(dataset_train, dataset_val,
                     learning_rate=config.LEARNING_RATE / 10,
-                    epochs=1,
+                    epochs=2,
                     layers='all',
                     augmentation=augmentation)
 
