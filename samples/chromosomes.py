@@ -392,8 +392,11 @@ if __name__ == '__main__':
         model_path = args.model
 
     # Load weights
+    # Whenever runs train function, lose all previous training progress on mrcnn heads
+    # Run training only once, not multiple times, and just run for many epochs
     print("Loading weights ", model_path)
-    model.load_weights(model_path, by_name=True)
+    model.load_weights(model_path, by_name=True,
+                    exclude=[ "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
     # Train or evaluate
     if args.command == "train":
