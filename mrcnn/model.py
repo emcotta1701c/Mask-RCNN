@@ -232,37 +232,28 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
         print("Not using a stage 5 in the backbone network.")   # added print statement
     return [C1, C2, C3, C4, C5]
 
+############################################################
+#  ResNeXt Graph
+############################################################
+
 # ResNeXt graph: https://github.com/titu1994/Keras-ResNeXt/blob/master/resnext.py
 # Modifications: Incorporating train_bn parameter, taking out code that deals with channel_axis != -1
-from keras.models import Model
-from keras.layers.core import Dense, Lambda
-from keras.layers.core import Activation
-from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import GlobalAveragePooling2D, GlobalMaxPooling2D, MaxPooling2D
-from keras.layers import Input
-from keras.layers.merge import concatenate, add
-from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
-from keras.utils.layer_utils import convert_all_kernels_in_model
-from keras.utils.data_utils import get_file
-from keras.engine.topology import get_source_inputs
-from keras_applications.imagenet_utils import _obtain_input_shape
-import keras.backend as K
 
 def initial_conv_block(input, train_bn=True, weight_decay=5e-4):
     """
-    x = Conv2D(64, (3, 3), padding='same', use_bias=False, kernel_initializer='he_normal',
+    x = KL.Conv2D(64, (3, 3), padding='same', use_bias=False, kernel_initializer='he_normal',
                kernel_regularizer=l2(weight_decay))(input)
     x = BatchNormalization()(x, training=train_bn)
     x = Activation('relu')(x)
     """
 
-    x = Conv2D(64, (7, 7), padding='same', use_bias=False, kernel_initializer='he_normal',
+    x = KL.Conv2D(64, (7, 7), padding='same', use_bias=False, kernel_initializer='he_normal',
                kernel_regularizer=l2(weight_decay), strides=(2, 2))(input)
-    x = BatchNormalization()(x, training=train_bn)
-    x = Activation('relu')(x)
+    x = BatchNorm()(x, training=train_bn)
+    x = KL.Activation('relu')(x)
 
-    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
+    x = KL.MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
 
     return x
 
@@ -282,26 +273,26 @@ def grouped_convolution_block(input, grouped_channels, cardinality, strides, tra
 
     if cardinality == 1:
         # with cardinality 1, it is a standard convolution
-        x = Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
+        x = KL.Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
                    kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(init)
-        x = BatchNormalization()(x, training=train_bn)
-        x = Activation('relu')(x)
+        x = BatchNorm()(x, training=train_bn)
+        x = KL.Activation('relu')(x)
         return x
 
     for c in range(cardinality):
         # Next lines isolate a group of channels
-        x = Lambda(lambda z: z[:, :, :, (c * grouped_channels) : ((c + 1) * grouped_channels)]
+        x = KL.Lambda(lambda z: z[:, :, :, (c * grouped_channels) : ((c + 1) * grouped_channels)]
         if K.image_data_format() == 'channels_last' else
         lambda z: z[:, (c * grouped_channels) : ((c + 1) * grouped_channels), :, :])(input)
 
-        x = Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
+        x = KL.Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
                    kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(x)
 
         group_list.append(x)
 
-    group_merge = concatenate(group_list, axis=-1)  # channel_axis = -1
-    x = BatchNormalization()(group_merge, training=train_bn)
-    x = Activation('relu')(x)
+    group_merge = KL.Concatenate(group_list, axis=-1)  # channel_axis = -1
+    x = BatchNorm()(group_merge, training=train_bn)
+    x = KL.Activation('relu')(x)
 
     return x
 
@@ -323,23 +314,23 @@ def bottleneck_block(input, filters=64, cardinality=8, strides=1, train_bn=True,
 
     # Check if input number of filters is same as 16 * k, else create convolution2d for this input
     if init.shape[-1] != 2 * filters:
-        init = Conv2D(filters * 2, (1, 1), padding='same', strides=(strides, strides),
+        init = KL.Conv2D(filters * 2, (1, 1), padding='same', strides=(strides, strides),
                         use_bias=False, kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(init)
-        init = BatchNormalization()(init, training=train_bn)
+        init = BatchNorm()(init, training=train_bn)
 
-    x = Conv2D(filters, (1, 1), padding='same', use_bias=False,
+    x = KL.Conv2D(filters, (1, 1), padding='same', use_bias=False,
                kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(input)
-    x = BatchNormalization()(x, training=train_bn)
-    x = Activation('relu')(x)
+    x = BatchNorm()(x, training=train_bn)
+    x = KL.Activation('relu')(x)
 
     x = grouped_convolution_block(x, grouped_channels, cardinality, strides, weight_decay)
 
-    x = Conv2D(filters * 2, (1, 1), padding='same', use_bias=False, kernel_initializer='he_normal',
+    x = KL.Conv2D(filters * 2, (1, 1), padding='same', use_bias=False, kernel_initializer='he_normal',
                kernel_regularizer=l2(weight_decay))(x)
-    x = BatchNormalization()(x, training=train_bn)
+    x = BatchNorm()(x, training=train_bn)
 
-    x = add([init, x])
-    x = Activation('relu')(x)
+    x = KL.Add()([init, x])
+    x = KL.Activation('relu')(x)
 
     return x
 
