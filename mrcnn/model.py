@@ -80,7 +80,10 @@ def compute_backbone_shapes(config, image_shape):
     # Currently supports ResNet only
     # assert config.BACKBONE in ["resnet50", "resnet101"]
     # assert config.BACKBONE in ["resnet50", "resnet101", "resnet152"]
-    assert config.BACKBONE in ["resnet50", "resnet101", "resnet152", "resnext50", "resnext101", "resnext152"]
+    backbones = ["resnet50", "resnet101", "resnet152", "resnext50", "resnext101", "resnext152",
+                "convnext_v1", "convnext_v1_base", "convnext_v1_large", "convnext_v1_xlarge",
+                "convnext_v2", "convnext_v2_base", "convnext_v2_large", "convnext_v2_xlarge"]
+    assert config.BACKBONE in backbones
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
             int(math.ceil(image_shape[1] / stride))]
