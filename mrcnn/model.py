@@ -192,7 +192,7 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
     x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), train_bn=train_bn)
     x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', train_bn=train_bn)
     C2 = x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', train_bn=train_bn)
-    # redefining stages 3-5 to have a variable number of blocks per stage per resnet_num_blocks dictionary
+    # redefining stages 3-5 to have variable block numbers per stage
     # Stage 3
     x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', train_bn=train_bn)
     block_count = {"resnet50": 4-1, "resnet101": 4-1, "resnet152": 8-1}[architecture]
