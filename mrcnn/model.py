@@ -78,7 +78,8 @@ def compute_backbone_shapes(config, image_shape):
         return config.COMPUTE_BACKBONE_SHAPE(image_shape)
 
     # Currently supports ResNet only
-    assert config.BACKBONE in ["resnet50", "resnet101"]
+    # assert config.BACKBONE in ["resnet50", "resnet101"]
+    assert config.BACKBONE in ["resnet50", "resnet101", "resnet152"]
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
             int(math.ceil(image_shape[1] / stride))]
@@ -174,7 +175,8 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
         stage5: Boolean. If False, stage5 of the network is not created
         train_bn: Boolean. Train or freeze Batch Norm layers
     """
-    assert architecture in ["resnet50", "resnet101"]
+    # assert architecture in ["resnet50", "resnet101"]
+    assert architecture in ["resnet50", "resnet101", "resnet152"]   # added support for ResNet152
     # Stage 1
     """
     x = tf.keras.layers.ZeroPadding2D(padding=(3, 3),
@@ -190,6 +192,23 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
     x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), train_bn=train_bn)
     x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', train_bn=train_bn)
     C2 = x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', train_bn=train_bn)
+    # redefining stages 3-5 to have a variable number of blocks per stage per resnet_num_blocks dictionary
+    # Stage 3
+    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', train_bn=train_bn)
+    block_count = {"resnet50": 4-1, "resnet101": 4-1, "resnet152": 8-1}[architecture]
+    for i in range(block_count):
+        ind = 98 + i
+        if ind > 122:
+            ind = 65 + ind-122 - 1
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block=chr(ind), train_bn=train_bn)
+    C3 = x
+    # Stage 4
+    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', train_bn=train_bn)
+    block_count = {"resnet50": 6-1, "resnet101": 23-1, "resnet152": 36-1}[architecture]
+    for i in range(block_count):
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block=chr(98 + i), train_bn=train_bn)
+    C4 = x
+    """
     # Stage 3
     x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', train_bn=train_bn)
     x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', train_bn=train_bn)
@@ -201,6 +220,8 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
     for i in range(block_count):
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block=chr(98 + i), train_bn=train_bn)
     C4 = x
+    """
+
     # Stage 5
     if stage5:
         x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', train_bn=train_bn)
@@ -208,6 +229,7 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
         C5 = x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', train_bn=train_bn)
     else:
         C5 = None
+        print("Not using a stage 5 in the backbone network.")   # added print statement
     return [C1, C2, C3, C4, C5]
 
 

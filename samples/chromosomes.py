@@ -101,6 +101,9 @@ class ChromosomeConfig(Config):
     MASK_SHAPE = [28, 28]   # change later
     MAX_GT_INSTANCES = 100
 
+    # Supported backbones: resnet50, resnet101, resnet152
+    BACKBONE = "resnet101"
+
 
 ############################################################
 #  Dataset
