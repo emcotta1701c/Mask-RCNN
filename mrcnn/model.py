@@ -241,7 +241,7 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
 # Modifications: Incorporating train_bn parameter, taking out code that deals with channel_axis != -1
 from keras.regularizers import l2
 
-def initial_conv_block(input, train_bn=True, weight_decay=5e-4):
+def initial_conv_block(input, image_side, batch_size, train_bn=True, weight_decay=5e-4):
     """
     x = KL.Conv2D(64, (3, 3), padding='same', use_bias=False, kernel_initializer='he_normal',
                kernel_regularizer=l2(weight_decay))(input)
@@ -250,7 +250,8 @@ def initial_conv_block(input, train_bn=True, weight_decay=5e-4):
     """
 
     x = KL.Conv2D(64, (7, 7), padding='same', use_bias=False, kernel_initializer='he_normal',
-               kernel_regularizer=l2(weight_decay), strides=(2, 2))(input)
+               kernel_regularizer=l2(weight_decay), strides=(2, 2),
+               input_shape=(batch_size, image_side, image_side, 1))(input)
     x = BatchNorm()(x, training=train_bn)
     x = KL.Activation('relu')(x)
 
@@ -404,7 +405,7 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
     stage_outputs = list()
 
     # Stage 1
-    x = initial_conv_block(img_input, train_bn=train_bn, weight_decay=weight_decay)
+    x = initial_conv_block(input_tensor, input_side, batch_size, train_bn=train_bn, weight_decay=weight_decay)
     C1 = x
 
     stage_outputs.append(C1) # C1, see resnet_graph for how to define this
@@ -444,6 +445,149 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
     assert len(stage_outputs) == 5, "resnext_graph() error, feature map list for FPN is not [C1,C2,C3,C4,C5/none]"
 
     return stage_outputs
+
+############################################################
+#  EfficientDet - TO-DO
+############################################################
+# github source: https://github.com/xuannianz/EfficientDet/blob/master/model.py
+
+
+############################################################
+#  ConvNeXt V1
+############################################################
+# github source: https://github.com/zibbini/convnext-v2_tensorflow/blob/main/convnext_tf/convnext_v1.py
+
+
+class DropPath(KL.Layer):
+    # borrowed from https://github.com/rishigami/Swin-Transformer-TF/blob/main/swintransformer/model.py
+    def __init__(self, drop_prob=None, **kwargs):
+        super().__init__()
+        self.drop_prob = drop_prob
+
+    @staticmethod
+    def drop_path(x, drop_prob, is_training):
+        if (not is_training) or (drop_prob == 0.):
+            return x
+
+        # Compute keep_prob
+        keep_prob = 1.0 - drop_prob
+
+        # Compute drop_connect tensor
+        random_tensor = keep_prob
+        shape = (tf.shape(x)[0],) + (1,) * \
+            (len(tf.shape(x)) - 1)
+        random_tensor += tf.random.uniform(shape, dtype=x.dtype)
+        binary_tensor = tf.floor(random_tensor)
+        output = tf.math.divide(x, keep_prob) * binary_tensor
+        return output
+
+    def call(self, x, training=None):
+        return self.drop_path(x, self.drop_prob, training)
+
+class LayerScale(KL.Layer):
+    def __init__(self, dim, init_value=1e-6, name='layer_scale', **kwargs):
+        super().__init__(**kwargs)
+        self.gamma = None
+        set_gamma(init_value, name)
+
+    def set_gamma(self, init_value, name):
+        if init_value <= 0:
+            return
+
+        self.gamma = tf.Variable(initial_value=init_value * tf.ones((dim)),
+                            trainable=True, name=f'{name}/gamma', dtype=self.compute_dtype)
+    
+    def call(self, x):
+        if self.gamma is not None:
+            x = self.gamma * x
+        return x
+
+def convnext_v1_downsample(input_tensor, dim):
+    x = KL.LayerNormalization(epsilon=1e-6)(input_tensor)
+    x = KL.Conv2D(dim, kernel_size=2, strides=2, padding='same')
+    return x
+
+# downsizes original input image; stage 1
+def convnext_v1_stem(input_tensor, input_side, batch_size, dim):
+    x = KL.Conv2D(dim, kernel_size=4, strides=4, padding='valid',
+        input_shape=(batch_size, input_side, input_side, 1))(input_tensor)
+    x = KL.LayerNormalization(epsilon=1e-6)(x)
+    return x
+
+def convnext_v1_block(input_tensor, dim, drop_path=0., layer_scale_init_value=1e-6):
+    x = KL.DepthwiseConv2D(kernel_size=7, padding='same')(input_tensor)
+    x = KL.LayerNormalization(epsilon=1e-6)(x)
+    x = KL.Dense(4 * dim)(x)
+    x = KL.Activation('gelu')(x)
+    x = KL.Dense(dim)(x)
+    x = LayerScale(dim, init_value=layer_scale_init_value)(x)
+    x = DropPath()(x)
+    x = KL.Add()([input_tensor, x])
+    return x
+
+# def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False, train_bn=True):
+def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5=False, train_bn=True):
+    archs = ["convnextv1", "convnextv1_base", "convnextv1_large", "convnextv1_xlarge"]
+    assert architecture in archs, "AssertionError in convnext_v1_graph(), architecture string is invalid: " + architecture
+    
+    ind = archs.index(architecture)
+    depths=[3, 3, 27, 3]    # varies for smaller versions of convnextv1, but not for base and larger sizes
+    dp_rates = [dp for dp in np.linspace(0, drop_path_rate, sum(depths))]   # drop path rate grows with depth
+    dim = list()
+    if ind == 0 or ind == 1:
+        dim = [128, 256, 512, 1024]
+    elif ind == 2:
+        dim = [192, 384, 768, 1536]
+    elif ind == 3:
+        dim = [256, 512, 1024, 2048]
+    else:
+        raise AssertionError, "Error in convnext_v1_graph(), somehow failed if stmt conditions"
+    
+    depth_counter = 0
+    for stage_ind in range(4):
+        if stage_ind == 0:  # Stage 1
+            x = convnext_v1_stem(dims[stage_ind])(x)
+        else:
+            x = convnext_v1_downsample(dims[stage_ind])(x)
+
+        for block_ind in range(depths[i]):  # fills in blocks for stages 2-5
+            x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
+
+        depth_counter += depths[stage_ind]
+
+    return x
+
+
+
+
+############################################################
+#  ConvNeXt V2
+############################################################
+# github source: https://github.com/zibbini/convnext-v2_tensorflow/blob/main/convnext_tf/convnext_v2.py
+# global response normalization layer class definition
+
+class GRN(KL.Layer):
+    def __init__(self, dim, name='grn', **kwargs):
+        super().__init__(**kwargs)
+        self.gamma = tf.Variable(
+            initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
+            trainable=True,
+            dtype=self.compute_dtype,
+            name=f'{name}/gamma'
+        )
+        self.beta = tf.Variable(
+            initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
+            trainable=True,
+            dtype=self.compute_dtype,
+            name=f'{name}/beta'
+        )
+
+    def call(self, x):
+        Gx = tf.norm(x, ord=2, axis=(1,2), keepdims=True)
+        Nx = Gx / (tf.math.reduce_mean(Gx, axis=-1, keepdims=True) + 1e-6)
+        return ((self.gamma * (x * Nx)) + self.beta) + x
+
+
 
 
 
