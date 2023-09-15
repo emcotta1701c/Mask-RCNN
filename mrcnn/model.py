@@ -441,8 +441,8 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
     if not stage5:
         stage_outputs.append(None)
     
-    # Check length of feature map list for FPN
-    assert len(stage_outputs) == 5, "resnext_graph() error, feature map list for FPN is not [C1,C2,C3,C4,C5/none]"
+    # Check length of stage outputs list
+    assert len(stage_outputs) == 5, "resnext_graph() error, stage_outputs list is not [C1,C2,C3,C4,C5/none]"
 
     return stage_outputs
 
@@ -502,13 +502,13 @@ class LayerScale(KL.Layer):
             x = self.gamma * x
         return x
 
-def convnext_v1_downsample(input_tensor, dim):
+def convnext_downsample(input_tensor, dim):
     x = KL.LayerNormalization(epsilon=1e-6)(input_tensor)
     x = KL.Conv2D(dim, kernel_size=2, strides=2, padding='same')
     return x
 
 # downsizes original input image; stage 1
-def convnext_v1_stem(input_tensor, input_side, batch_size, dim):
+def convnext_stem(input_tensor, input_side, batch_size, dim):
     x = KL.Conv2D(dim, kernel_size=4, strides=4, padding='valid',
         input_shape=(batch_size, input_side, input_side, 1))(input_tensor)
     x = KL.LayerNormalization(epsilon=1e-6)(x)
@@ -525,8 +525,47 @@ def convnext_v1_block(input_tensor, dim, drop_path=0., layer_scale_init_value=1e
     x = KL.Add()([input_tensor, x])
     return x
 
+def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=False)   
+    versions = ['v1', 'v2']
+    assert version in versions, "convnext_graph(), incompatible version passed ('v1' or 'v2' only)."
+
+    numStages = 4
+    if not stage5:
+        numStages--
+    
+    stage_outputs = list()
+    
+    depth_counter = 0
+    for stage_ind in range(numStages):
+        if stage_ind == 0:  # Stage 1
+            x = convnext_stem(dims[stage_ind])(x)
+            C1 = x
+            stage_outputs.append(C1)
+        else:
+            x = convnext_downsample(dims[stage_ind])(x)
+
+        for block_ind in range(depths[i]):  # fills in blocks for stages 2-5
+            if version == 'v1':
+                x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
+            elif version == 'v2':
+                x = convnext_v2_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
+            else:
+                raise AssertionError, "convnext_graph(), failed convnext version control if statement."
+        C = x
+        stage_outputs.append(C)
+        depth_counter += depths[stage_ind]
+    
+    # If missing stage 5, append None for C5
+    if not stage5:
+        stage_outputs.append(None)
+    
+    # Check length of stage outputs list
+    assert len(stage_outputs) == 5, "resnext_graph() error, stage_outputs list is not [C1,C2,C3,C4,C5/none]"
+
+    return stage_outputs
+
 # def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False, train_bn=True):
-def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5=False, train_bn=True):
+def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5=False):
     archs = ["convnextv1", "convnextv1_base", "convnextv1_large", "convnextv1_xlarge"]
     assert architecture in archs, "AssertionError in convnext_v1_graph(), architecture string is invalid: " + architecture
     
@@ -543,19 +582,9 @@ def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5
     else:
         raise AssertionError, "Error in convnext_v1_graph(), somehow failed if stmt conditions"
     
-    depth_counter = 0
-    for stage_ind in range(4):
-        if stage_ind == 0:  # Stage 1
-            x = convnext_v1_stem(dims[stage_ind])(x)
-        else:
-            x = convnext_v1_downsample(dims[stage_ind])(x)
-
-        for block_ind in range(depths[i]):  # fills in blocks for stages 2-5
-            x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
-
-        depth_counter += depths[stage_ind]
-
-    return x
+    version = 'v1'
+    
+    return convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=stage5)
 
 
 
@@ -587,9 +616,37 @@ class GRN(KL.Layer):
         Nx = Gx / (tf.math.reduce_mean(Gx, axis=-1, keepdims=True) + 1e-6)
         return ((self.gamma * (x * Nx)) + self.beta) + x
 
+def convnext_v2_block(input_tensor, dim, drop_path=0.):
+    x = KL.DepthwiseConv2D(kernel_size=7, padding='same')(input_tensor)
+    x = KL.LayerNormalization(epsilon=1e-6)(x)
+    x = KL.Dense(4 * dim)(x)
+    x = KL.Activation('gelu')(x)
+    x = GELU(4 * dim, name=f"{kwargs['name']}_grn")
+    x = KL.Dense(dim)(x)
+    x = DropPath()(x)
+    x = KL.Add()([input_tensor, x])
+    return x
 
-
-
+def convnext_v2_graph(input_tensor, architecture, input_side, batch_size, stage5=False):
+    archs = ["convnextv2", "convnextv2_base", "convnextv2_large", "convnextv2_xlarge"]
+    assert architecture in archs, "AssertionError in convnext_v2_graph(), architecture string is invalid: " + architecture
+    
+    ind = archs.index(architecture)
+    depths=[3, 3, 27, 3]    # varies for smaller versions of convnextv2, but not for base and larger sizes
+    dp_rates = [dp for dp in np.linspace(0, drop_path_rate, sum(depths))]   # drop path rate grows with depth
+    dim = list()
+    if ind == 0 or ind == 1:
+        dim = [128, 256, 512, 1024]
+    elif ind == 2:
+        dim = [192, 384, 768, 1536]
+    elif ind == 3:
+        dim = [256, 512, 1024, 2048]
+    else:
+        raise AssertionError, "Error in convnext_v2_graph(), somehow failed if stmt conditions"
+    
+    version = 'v2'
+    
+    return convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=stage5)
 
 ############################################################
 #  Proposal Layer
