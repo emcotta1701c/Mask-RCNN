@@ -2452,6 +2452,12 @@ class MaskRCNN():
             else if "resnext" in config.BACKBONE:
                 _, C2, C3, C4, C5 = resnext_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
+            else if "convnext_v1" in config.BACKBONE:
+                _, C2, C3, C4, C5 = convnext_v1_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
+                                             config.BATCH_SIZE, stage5=True)
+            else if "convnext_v2" in config.BACKBONE:
+                _, C2, C3, C4, C5 = convnext_v2_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
+                                             config.BATCH_SIZE, stage5=True)
             else:
                 raise AssertionError ("Incompatible backbone: " + config.BACKBONE)
         # Top-down Layers
