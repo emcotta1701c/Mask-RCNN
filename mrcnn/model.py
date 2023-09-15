@@ -232,6 +232,226 @@ def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False
         print("Not using a stage 5 in the backbone network.")   # added print statement
     return [C1, C2, C3, C4, C5]
 
+# ResNeXt graph: https://github.com/titu1994/Keras-ResNeXt/blob/master/resnext.py
+# Modifications: Incorporating train_bn parameter, taking out code that deals with channel_axis != -1
+from keras.models import Model
+from keras.layers.core import Dense, Lambda
+from keras.layers.core import Activation
+from keras.layers.convolutional import Conv2D
+from keras.layers.pooling import GlobalAveragePooling2D, GlobalMaxPooling2D, MaxPooling2D
+from keras.layers import Input
+from keras.layers.merge import concatenate, add
+from keras.layers.normalization import BatchNormalization
+from keras.regularizers import l2
+from keras.utils.layer_utils import convert_all_kernels_in_model
+from keras.utils.data_utils import get_file
+from keras.engine.topology import get_source_inputs
+from keras_applications.imagenet_utils import _obtain_input_shape
+import keras.backend as K
+
+def initial_conv_block(input, train_bn=True, weight_decay=5e-4):
+    """
+    x = Conv2D(64, (3, 3), padding='same', use_bias=False, kernel_initializer='he_normal',
+               kernel_regularizer=l2(weight_decay))(input)
+    x = BatchNormalization()(x, training=train_bn)
+    x = Activation('relu')(x)
+    """
+
+    x = Conv2D(64, (7, 7), padding='same', use_bias=False, kernel_initializer='he_normal',
+               kernel_regularizer=l2(weight_decay), strides=(2, 2))(input)
+    x = BatchNormalization()(x, training=train_bn)
+    x = Activation('relu')(x)
+
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
+
+    return x
+
+def grouped_convolution_block(input, grouped_channels, cardinality, strides, train_bn=True, weight_decay=5e-4):
+    ''' Adds a grouped convolution block. It is an equivalent block from the paper
+    Args:
+        input: input tensor
+        grouped_channels: grouped number of filters
+        cardinality: cardinality factor describing the number of groups
+        strides: performs strided convolution for downscaling if > 1
+        weight_decay: weight decay term
+    Returns: a keras tensor
+    '''
+    init = input
+
+    group_list = []
+
+    if cardinality == 1:
+        # with cardinality 1, it is a standard convolution
+        x = Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
+                   kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(init)
+        x = BatchNormalization()(x, training=train_bn)
+        x = Activation('relu')(x)
+        return x
+
+    for c in range(cardinality):
+        # Next lines isolate a group of channels
+        x = Lambda(lambda z: z[:, :, :, (c * grouped_channels) : ((c + 1) * grouped_channels)]
+        if K.image_data_format() == 'channels_last' else
+        lambda z: z[:, (c * grouped_channels) : ((c + 1) * grouped_channels), :, :])(input)
+
+        x = Conv2D(grouped_channels, (3, 3), padding='same', use_bias=False, strides=(strides, strides),
+                   kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(x)
+
+        group_list.append(x)
+
+    group_merge = concatenate(group_list, axis=-1)  # channel_axis = -1
+    x = BatchNormalization()(group_merge, training=train_bn)
+    x = Activation('relu')(x)
+
+    return x
+
+
+def bottleneck_block(input, filters=64, cardinality=8, strides=1, train_bn=True, weight_decay=5e-4):
+    ''' Adds a bottleneck block
+    Args:
+        input: input tensor
+        filters: number of output filters
+        cardinality: cardinality factor described number of
+            grouped convolutions
+        strides: performs strided convolution for downsampling if > 1
+        weight_decay: weight decay factor
+    Returns: a keras tensor
+    '''
+    init = input
+
+    grouped_channels = int(filters / cardinality)
+
+    # Check if input number of filters is same as 16 * k, else create convolution2d for this input
+    if init.shape[-1] != 2 * filters:
+        init = Conv2D(filters * 2, (1, 1), padding='same', strides=(strides, strides),
+                        use_bias=False, kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(init)
+        init = BatchNormalization()(init, training=train_bn)
+
+    x = Conv2D(filters, (1, 1), padding='same', use_bias=False,
+               kernel_initializer='he_normal', kernel_regularizer=l2(weight_decay))(input)
+    x = BatchNormalization()(x, training=train_bn)
+    x = Activation('relu')(x)
+
+    x = grouped_convolution_block(x, grouped_channels, cardinality, strides, weight_decay)
+
+    x = Conv2D(filters * 2, (1, 1), padding='same', use_bias=False, kernel_initializer='he_normal',
+               kernel_regularizer=l2(weight_decay))(x)
+    x = BatchNormalization()(x, training=train_bn)
+
+    x = add([init, x])
+    x = Activation('relu')(x)
+
+    return x
+
+
+# from ResNextImageNet function in repo
+# def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False, train_bn=True)
+def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=False, train_bn=True,
+                    cardinality=32, width=4, weight_decay=5e-4):
+    # Arguments
+        """
+            depth: number or layers in the each block, defined as a list.
+                ResNeXt-50 can be defined as [3, 4, 6, 3].
+                ResNeXt-101 can be defined as [3, 4, 23, 3].
+                Defaults is ResNeXt-50.
+            cardinality: the size of the set of transformations
+            width: multiplier to the ResNeXt width (number of filters)
+            weight_decay: weight decay (l2 norm)
+            include_top: whether to include the fully-connected
+                layer at the top of the network.
+            weights: `None` (random initialization) or `imagenet` (trained
+                on ImageNet)
+            input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
+                to use as image input for the model.
+            input_shape: optional shape tuple, only to be specified
+                if `include_top` is False (otherwise the input shape
+                has to be `(224, 224, 3)` (with `tf` dim ordering)
+                or `(3, 224, 224)` (with `th` dim ordering).
+                It should have exactly 3 inputs channels,
+                and width and height should be no smaller than 8.
+                E.g. `(200, 200, 3)` would be one valid value.
+            pooling: Optional pooling mode for feature extraction
+                when `include_top` is `False`.
+                - `None` means that the output of the model will be
+                    the 4D tensor output of the
+                    last convolutional layer.
+                - `avg` means that global average pooling
+                    will be applied to the output of the
+                    last convolutional layer, and thus
+                    the output of the model will be a 2D tensor.
+                - `max` means that global max pooling will
+                    be applied.
+            classes: optional number of classes to classify images
+                into, only to be specified if `include_top` is True, and
+                if no `weights` argument is specified.
+        # Returns
+            A Keras model instance.
+        """
+    stage_depths = []
+    assert architecture in ["resnext50", "resnext101", "resnext152"]
+
+    if architecture == "resnext50":
+        stage_depths = [3,4,6,3]
+    else if architecture == "resnext101":
+        stage_depths = [3,4,23,3]
+    else:
+        stage_depths = [3,8,34,6]
+        if architecture != "resnext152":
+            print("\nError in resnext_graph():")
+            print("Calling # blocks in resnext152 even though architecture string does not match.")
+
+    filters = cardinality * width
+    filters_list = []
+
+    for i in range(len(stage_depths)):
+        filters_list.append(filters)
+        filters *= 2  # double the size of the filters
+
+    stage_outputs = list()
+
+    # Stage 1
+    x = initial_conv_block(img_input, train_bn=train_bn, weight_decay=weight_decay)
+    C1 = x
+
+    stage_outputs.append(C1) # C1, see resnet_graph for what this means (input to FPN)
+
+    # Stage 2 (no pooling)
+    for i in range(stage_depths[0]):
+        x = bottleneck_block(x, filters_list[0], cardinality, strides=1, train_bn=train_bn, weight_decay=weight_decay)
+    C2 = x
+
+    stage_outputs.append(C2)
+
+    stage_depths = stage_depths[1:]  # remove the first block from block definition list
+    filters_list = filters_list[1:]  # remove the first filter from the filter list
+
+    if not stage5:
+        leng = len(stage_depths)
+        stage_depths = stage_depths[:leng-1]    # exclude stage 5
+        filters_list = filters_list[:leng-1]    # exclude stage 5
+
+    # block 2 to N (N=4 or 5 depending on stage5 boolean parameter)
+    for stage_index, num_blocks in enumerate(stage_depths):
+        for i in range(num_blocks):    # for each block index i in stage
+            if i == 0:
+                x = bottleneck_block(x, filters_list[stage_index], cardinality, strides=2,
+                                       train_bn=train_bn, weight_decay=weight_decay)
+            else:
+                x = bottleneck_block(x, filters_list[stage_index], cardinality, strides=1,
+                                       train_bn=train_bn, weight_decay=weight_decay)
+        C = x
+        stage_outputs.append(C)
+    
+    # If missing stage 5, append None for C5
+    if not stage5:
+        stage_outputs.append(None)
+    
+    # Check length of feature map list for FPN
+    assert len(stage_outputs) == 5, "resnext_graph() error, feature map list for FPN is not [C1,C2,C3,C4,C5/none]"
+
+    return stage_outputs
+
+
 
 ############################################################
 #  Proposal Layer
