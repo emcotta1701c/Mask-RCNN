@@ -79,7 +79,8 @@ def compute_backbone_shapes(config, image_shape):
 
     # Currently supports ResNet only
     # assert config.BACKBONE in ["resnet50", "resnet101"]
-    assert config.BACKBONE in ["resnet50", "resnet101", "resnet152"]
+    # assert config.BACKBONE in ["resnet50", "resnet101", "resnet152"]
+    assert config.BACKBONE in ["resnet50", "resnet101", "resnet152", "resnext50", "resnext101", "resnext152"]
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
             int(math.ceil(image_shape[1] / stride))]
@@ -337,8 +338,10 @@ def bottleneck_block(input, filters=64, cardinality=8, strides=1, train_bn=True,
 
 # from ResNextImageNet function in repo
 # def resnet_graph(input_image, architecture, input_side, batch_size, stage5=False, train_bn=True)
+# see https://www.kaggle.com/datasets/ipythonx/keras-pretrained-imagenet-weights?select=resnext101_imagenet_1000_no_top.h5 for weights
 def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=False, train_bn=True,
                     cardinality=32, width=4, weight_decay=5e-4):
+    # cardinality and width same as in paper
     # Arguments
         """
             depth: number or layers in the each block, defined as a list.
@@ -404,7 +407,7 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
     x = initial_conv_block(img_input, train_bn=train_bn, weight_decay=weight_decay)
     C1 = x
 
-    stage_outputs.append(C1) # C1, see resnet_graph for what this means (input to FPN)
+    stage_outputs.append(C1) # C1, see resnet_graph for how to define this
 
     # Stage 2 (no pooling)
     for i in range(stage_depths[0]):
@@ -2238,8 +2241,15 @@ class MaskRCNN():
             # IMAGE_MIN_DIM must be IMAGE_MAX_DIM - maybe not, but confusing otherwise
             # Expects square image
             assert config.IMAGE_MIN_DIM == config.IMAGE_MAX_DIM
-            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
+            # Adding code for resnext_graph
+            if "resnet" in config.BACKBONE:
+                _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
+            else if "resnext" in config.BACKBONE:
+                _, C2, C3, C4, C5 = resnext_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
+                                             config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
+            else:
+                raise AssertionError ("Incompatible backbone: " + config.BACKBONE)
         # Top-down Layers
         # TODO: add assert to varify feature map sizes match what's in config
         P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c5p5')(C5)
