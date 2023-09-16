@@ -510,44 +510,44 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
     # Expansion phase
     filters = block_args.input_filters * block_args.expand_ratio
     if block_args.expand_ratio != 1:
-        x = layers.Conv2D(filters, 1,
+        x = KL.Conv2D(filters, 1,
                           padding='same',
                           use_bias=False,
                           kernel_initializer=CONV_KERNEL_INITIALIZER,
                           name=prefix + 'expand_conv')(inputs)
         # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'expand_bn')(x)
-        x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x)
-        x = layers.Activation(activation, name=prefix + 'expand_activation')(x)
+        x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x)
+        x = KL.Activation(activation, name=prefix + 'expand_activation')(x)
     else:
         x = inputs
 
     # Depthwise Convolution
-    x = layers.DepthwiseConv2D(block_args.kernel_size,
+    x = KL.DepthwiseConv2D(block_args.kernel_size,
                                strides=block_args.strides,
                                padding='same',
                                use_bias=False,
                                depthwise_initializer=CONV_KERNEL_INITIALIZER,
                                name=prefix + 'dwconv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'bn')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x)
-    x = layers.Activation(activation, name=prefix + 'activation')(x)
+    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x)
+    x = KL.Activation(activation, name=prefix + 'activation')(x)
 
     # Squeeze and Excitation phase
     if has_se:
         num_reduced_filters = max(1, int(
             block_args.input_filters * block_args.se_ratio
         ))
-        se_tensor = layers.GlobalAveragePooling2D(name=prefix + 'se_squeeze')(x)
+        se_tensor = KL.GlobalAveragePooling2D(name=prefix + 'se_squeeze')(x)
 
         target_shape = (1, 1, filters) if backend.image_data_format() == 'channels_last' else (filters, 1, 1)
-        se_tensor = layers.Reshape(target_shape, name=prefix + 'se_reshape')(se_tensor)
-        se_tensor = layers.Conv2D(num_reduced_filters, 1,
+        se_tensor = KL.Reshape(target_shape, name=prefix + 'se_reshape')(se_tensor)
+        se_tensor = KL.Conv2D(num_reduced_filters, 1,
                                   activation=activation,
                                   padding='same',
                                   use_bias=True,
                                   kernel_initializer=CONV_KERNEL_INITIALIZER,
                                   name=prefix + 'se_reduce')(se_tensor)
-        se_tensor = layers.Conv2D(filters, 1,
+        se_tensor = KL.Conv2D(filters, 1,
                                   activation='sigmoid',
                                   padding='same',
                                   use_bias=True,
@@ -558,19 +558,19 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
             # the excitation weights broadcastable.
             pattern = ([True, True, True, False] if backend.image_data_format() == 'channels_last'
                        else [True, False, True, True])
-            se_tensor = layers.Lambda(
+            se_tensor = KL.Lambda(
                 lambda x: backend.pattern_broadcast(x, pattern),
                 name=prefix + 'se_broadcast')(se_tensor)
-        x = layers.multiply([x, se_tensor], name=prefix + 'se_excite')
+        x = KL.multiply([x, se_tensor], name=prefix + 'se_excite')
 
     # Output phase
-    x = layers.Conv2D(block_args.output_filters, 1,
+    x = KL.Conv2D(block_args.output_filters, 1,
                       padding='same',
                       use_bias=False,
                       kernel_initializer=CONV_KERNEL_INITIALIZER,
                       name=prefix + 'project_conv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'project_bn')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x)
+    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x)
     if block_args.id_skip and all(
             s == 1 for s in block_args.strides
     ) and block_args.input_filters == block_args.output_filters:
@@ -578,7 +578,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
             x = Dropout(drop_rate,
                         noise_shape=(None, 1, 1, 1),
                         name=prefix + 'drop')(x)
-        x = layers.add([x, inputs], name=prefix + 'add')
+        x = KL.Add(name=prefix + 'add')([x, inputs])
 
     return x
 
