@@ -493,7 +493,7 @@ def round_repeats(repeats, depth_coefficient):
 
     return int(math.ceil(depth_coefficient * repeats))
 
-def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', freeze_bn=False):
+def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
     """Mobile Inverted Residual Bottleneck."""
 
     has_se = (block_args.se_ratio is not None) and (0 < block_args.se_ratio <= 1)
@@ -516,7 +516,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                           kernel_initializer=CONV_KERNEL_INITIALIZER,
                           name=prefix + 'expand_conv')(inputs)
         # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'expand_bn')(x)
-        x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x)
+        x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x, training=train_bn)
         x = KL.Activation(activation, name=prefix + 'expand_activation')(x)
     else:
         x = inputs
@@ -529,7 +529,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                                depthwise_initializer=CONV_KERNEL_INITIALIZER,
                                name=prefix + 'dwconv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'bn')(x)
-    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x)
+    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x, training=train_bn)
     x = KL.Activation(activation, name=prefix + 'activation')(x)
 
     # Squeeze and Excitation phase
@@ -570,7 +570,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                       kernel_initializer=CONV_KERNEL_INITIALIZER,
                       name=prefix + 'project_conv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'project_bn')(x)
-    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x)
+    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x, training=train_bn)
     if block_args.id_skip and all(
             s == 1 for s in block_args.strides
     ) and block_args.input_filters == block_args.output_filters:
@@ -581,6 +581,121 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
         x = KL.Add(name=prefix + 'add')([x, inputs])
 
     return x
+
+def EfficientNet(input_image, input_side, batch_size, width_coefficient,
+                 depth_coefficient,
+                 default_resolution,
+                 dropout_rate=0.2,
+                 drop_connect_rate=0.2,
+                 depth_divisor=8,
+                 blocks_args=DEFAULT_BLOCKS_ARGS,
+                 train_bn=False,
+                 **kwargs):
+    """Instantiates the EfficientNet architecture using given scaling coefficients.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    # Arguments
+        width_coefficient: float, scaling coefficient for network width.
+        depth_coefficient: float, scaling coefficient for network depth.
+        default_resolution: int, default input image size.
+        dropout_rate: float, dropout rate before final classifier layer.
+        drop_connect_rate: float, dropout rate at skip connections.
+        depth_divisor: int.
+        blocks_args: A list of BlockArgs to construct block modules.
+        model_name: string, model name.
+        include_top: whether to include the fully-connected
+            layer at the top of the network.
+        weights: one of `None` (random initialization),
+              'imagenet' (pre-training on ImageNet),
+              or the path to the weights file to be loaded.
+        input_tensor: optional Keras tensor
+            (i.e. output of `layers.Input()`)
+            to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False.
+            It should have exactly 3 inputs channels.
+        pooling: optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
+    # Returns
+        A Keras model instance.
+    # Raises
+        ValueError: in case of invalid argument for `weights`,
+            or invalid input shape.
+    """
+    global backend, layers, models, keras_utils
+    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
+    features = []
+
+    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+    activation = get_swish(**kwargs)
+
+    # Build stem
+    x = KL.Conv2D(round_filters(32, width_coefficient, depth_divisor), 3,
+                      strides=(2, 2),
+                      padding='same',
+                      use_bias=False,
+                      kernel_initializer=CONV_KERNEL_INITIALIZER,
+                      input_shape=(batch_size, input_side, input_side, 1),
+                      name='stem_conv')(image_input)
+    # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name='stem_bn')(x)
+    x = BatchNorm(axis=bn_axis, name='stem_bn')(x, training=train_bn)
+    x = KL.Activation(activation, name='stem_activation')(x)
+    # Build blocks
+    num_blocks_total = sum(block_args.num_repeat for block_args in blocks_args)
+    block_num = 0
+    for idx, block_args in enumerate(blocks_args):
+        assert block_args.num_repeat > 0
+        # Update block input and output filters based on depth multiplier.
+        block_args = block_args._replace(
+            input_filters=round_filters(block_args.input_filters,
+                                        width_coefficient, depth_divisor),
+            output_filters=round_filters(block_args.output_filters,
+                                         width_coefficient, depth_divisor),
+            num_repeat=round_repeats(block_args.num_repeat, depth_coefficient))
+
+        # The first block needs to take care of stride and filter size increase.
+        drop_rate = drop_connect_rate * float(block_num) / num_blocks_total
+        # def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
+        x = efficientdet_conv_block(x, block_args,
+                          activation=activation,
+                          drop_rate=drop_rate,
+                          prefix='block{}a_'.format(idx + 1),
+                          train_bn=train_bn)
+        block_num += 1
+        if block_args.num_repeat > 1:
+            # pylint: disable=protected-access
+            block_args = block_args._replace(
+                input_filters=block_args.output_filters, strides=[1, 1])
+            # pylint: enable=protected-access
+            for bidx in xrange(block_args.num_repeat - 1):
+                drop_rate = drop_connect_rate * float(block_num) / num_blocks_total
+                block_prefix = 'block{}{}_'.format(
+                    idx + 1,
+                    string.ascii_lowercase[bidx + 1]
+                )
+                x = efficientdet_conv_block(x, block_args,
+                                  activation=activation,
+                                  drop_rate=drop_rate,
+                                  prefix=block_prefix,
+                                  train_bn=train_bn)
+                block_num += 1
+        if idx < len(blocks_args) - 1 and blocks_args[idx + 1].strides[0] == 2:
+            features.append(x)
+        elif idx == len(blocks_args) - 1:
+            features.append(x)
+    return features
 
 
 ############################################################
