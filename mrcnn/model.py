@@ -510,13 +510,10 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
     # Expansion phase
     filters = block_args.input_filters * block_args.expand_ratio
     if block_args.expand_ratio != 1:
-        x = KL.Conv2D(filters, 1,
-                          padding='same',
-                          use_bias=False,
-                          kernel_initializer=CONV_KERNEL_INITIALIZER,
+        x = KL.Conv2D(filters, 1, padding='same', use_bias=False, kernel_initializer=CONV_KERNEL_INITIALIZER,
                           name=prefix + 'expand_conv')(inputs)
         # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'expand_bn')(x)
-        x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x, training=train_bn)
+        x = BatchNorm(axis=bn_axis, name=prefix + 'expand_bn')(x, training=train_bn)
         x = KL.Activation(activation, name=prefix + 'expand_activation')(x)
     else:
         x = inputs
@@ -529,7 +526,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                                depthwise_initializer=CONV_KERNEL_INITIALIZER,
                                name=prefix + 'dwconv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'bn')(x)
-    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x, training=train_bn)
+    x = BatchNorm(axis=bn_axis, name=prefix + 'bn')(x, training=train_bn)
     x = KL.Activation(activation, name=prefix + 'activation')(x)
 
     # Squeeze and Excitation phase
@@ -570,25 +567,22 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                       kernel_initializer=CONV_KERNEL_INITIALIZER,
                       name=prefix + 'project_conv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'project_bn')(x)
-    x = KL.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x, training=train_bn)
-    if block_args.id_skip and all(
-            s == 1 for s in block_args.strides
-    ) and block_args.input_filters == block_args.output_filters:
+    x = BatchNorm(axis=bn_axis, name=prefix + 'project_bn')(x, training=train_bn)
+    if block_args.id_skip and all(s == 1 for s in block_args.strides) and block_args.input_filters == block_args.output_filters:
         if drop_rate and (drop_rate > 0):
-            x = Dropout(drop_rate,
-                        noise_shape=(None, 1, 1, 1),
-                        name=prefix + 'drop')(x)
+            x = Dropout(drop_rate, noise_shape=(None, 1, 1, 1), name=prefix + 'drop')(x)
         x = KL.Add(name=prefix + 'add')([x, inputs])
 
     return x
 
-def EfficientNet(input_image, input_side, batch_size, width_coefficient,
+def efficient_net_graph(input_image, input_side, batch_size, width_coefficient,
                  depth_coefficient,
                  default_resolution,
                  dropout_rate=0.2,
                  drop_connect_rate=0.2,
                  depth_divisor=8,
                  blocks_args=DEFAULT_BLOCKS_ARGS,
+                 stage5=True,
                  train_bn=False,
                  **kwargs):
     """Instantiates the EfficientNet architecture using given scaling coefficients.
@@ -634,14 +628,17 @@ def EfficientNet(input_image, input_side, batch_size, width_coefficient,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    global backend, layers, models, keras_utils
-    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
-    features = []
+    assert stage5==True, "efficient_net_graph() does not support stage5==False"
 
-    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+    bn_axis = 3 # channels_last
     activation = get_swish(**kwargs)
 
-    # Build stem
+    # 7 stages (not including head this time, so head is stage 0)
+    # convention for other backbone models: head is stage 1
+    # P3-P7 should be returned at end
+    results = list()
+
+    # Build stem - stage '0'
     x = KL.Conv2D(round_filters(32, width_coefficient, depth_divisor), 3,
                       strides=(2, 2),
                       padding='same',
@@ -649,13 +646,13 @@ def EfficientNet(input_image, input_side, batch_size, width_coefficient,
                       kernel_initializer=CONV_KERNEL_INITIALIZER,
                       input_shape=(batch_size, input_side, input_side, 1),
                       name='stem_conv')(image_input)
-    # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name='stem_bn')(x)
     x = BatchNorm(axis=bn_axis, name='stem_bn')(x, training=train_bn)
     x = KL.Activation(activation, name='stem_activation')(x)
-    # Build blocks
+
+    # Build stages 1-7
     num_blocks_total = sum(block_args.num_repeat for block_args in blocks_args)
     block_num = 0
-    for idx, block_args in enumerate(blocks_args):
+    for stage_ind, block_args in enumerate(blocks_args):  # blocks_args contains arguments for 7 stages
         assert block_args.num_repeat > 0
         # Update block input and output filters based on depth multiplier.
         block_args = block_args._replace(
@@ -664,26 +661,28 @@ def EfficientNet(input_image, input_side, batch_size, width_coefficient,
             output_filters=round_filters(block_args.output_filters,
                                          width_coefficient, depth_divisor),
             num_repeat=round_repeats(block_args.num_repeat, depth_coefficient))
-
-        # The first block needs to take care of stride and filter size increase.
+        # Set dropout rate for stage's first block
         drop_rate = drop_connect_rate * float(block_num) / num_blocks_total
         # def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
+        # The first block of each stage needs to take care of stride and filter size increase.
+        # Corresponds to a downsampling block as opposed to an identity block
         x = efficientdet_conv_block(x, block_args,
                           activation=activation,
                           drop_rate=drop_rate,
                           prefix='block{}a_'.format(idx + 1),
                           train_bn=train_bn)
         block_num += 1
-        if block_args.num_repeat > 1:
+        if block_args.num_repeat > 1:   # For other blocks in stage (identity blocks)
             # pylint: disable=protected-access
-            block_args = block_args._replace(
-                input_filters=block_args.output_filters, strides=[1, 1])
+            block_args = block_args._replace(input_filters=block_args.output_filters, strides=[1, 1])
             # pylint: enable=protected-access
-            for bidx in xrange(block_args.num_repeat - 1):
+            # for bidx in xrange(block_args.num_repeat - 1):
+            for block_ind in range(block_args.num_repeat - 1):  # for all blocks except the first
+                # set per-block dropout rate
                 drop_rate = drop_connect_rate * float(block_num) / num_blocks_total
                 block_prefix = 'block{}{}_'.format(
-                    idx + 1,
-                    string.ascii_lowercase[bidx + 1]
+                    stage_ind + 1,
+                    string.ascii_lowercase[block_ind + 1]
                 )
                 x = efficientdet_conv_block(x, block_args,
                                   activation=activation,
@@ -691,11 +690,21 @@ def EfficientNet(input_image, input_side, batch_size, width_coefficient,
                                   prefix=block_prefix,
                                   train_bn=train_bn)
                 block_num += 1
-        if idx < len(blocks_args) - 1 and blocks_args[idx + 1].strides[0] == 2:
+        """
+        if stage_ind < len(blocks_args) - 1 and blocks_args[stage_ind + 1].strides[0] == 2:
             features.append(x)
-        elif idx == len(blocks_args) - 1:
+        elif stage_ind == len(blocks_args) - 1:
             features.append(x)
+        """
+        # Add feature maps from P3-P7
+        if stage_ind >= 3:
+            features.append(x)
+    
+    # here, not considering stage5=False for now
+    assert features.shape()[0] == 5, "efficient_net_graph() error, not returning feature maps from 5 stages."
     return features
+
+
 
 
 ############################################################
