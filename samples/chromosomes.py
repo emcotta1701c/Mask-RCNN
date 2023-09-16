@@ -102,7 +102,7 @@ class ChromosomeConfig(Config):
     MAX_GT_INSTANCES = 100  # can change later
     # can also implement crowding management later
     # can also implement data rotation augmentation later
-    self.USE_SOFT_NMS = True # custom ChromosomeConfig value; F / T: NMS / Soft-NMS
+    USE_SOFT_NMS = False # custom ChromosomeConfig value; F / T: NMS / Soft-NMS
 
     # Supported backbones:
     """

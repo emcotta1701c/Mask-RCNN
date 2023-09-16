@@ -179,7 +179,8 @@ class Config(object):
     DETECTION_NMS_THRESHOLD = 0.3
 
     # Soft-NMS parameters
-    DETECTION_SOFTNMS_THRESHOLD = 0.3
+    USE_SOFT_NMS = False
+    DETECTION_SOFTNMS_THRESHOLD = 0.3   # same as DETECTION_NMS_THRESHOLD
     DETECTION_SOFTNMS_SIGMA = 0.5   # can also try 0.6, but 0.5 used by the researchers
 
     # Learning rate and momentum
