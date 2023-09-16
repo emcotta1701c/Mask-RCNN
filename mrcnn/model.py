@@ -2828,22 +2828,8 @@ class MaskRCNN():
         proposal_count = config.POST_NMS_ROIS_TRAINING if mode == "training"\
             else config.POST_NMS_ROIS_INFERENCE
         
-        rpn_rois = None
-        if config.USE_SOFT_NMS:
-            #Soft-NMS:
-            rpn_rois = ProposalLayer(
-                proposal_count=proposal_count,
-                soft_nms_threshold=config.RPN_SOFTNMS_THRESHOLD,
-                soft_nms_sigma=config.RPN_SOFTNMS_SIGMA,
-                name="ROI",
-                config=config)([rpn_class, rpn_bbox, anchors])
-        else:
-            #NMS:
-            rpn_rois = ProposalLayer(
-                proposal_count=proposal_count,
-                nms_threshold=config.RPN_NMS_THRESHOLD,
-                name="ROI",
-                config=config)([rpn_class, rpn_bbox, anchors])
+        rpn_rois = ProposalLayer(proposal_count=proposal_count,
+                        name="ROI", config=config)([rpn_class, rpn_bbox, anchors])
         
 
         if mode == "training":
