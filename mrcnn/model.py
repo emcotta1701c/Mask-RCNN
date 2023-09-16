@@ -454,6 +454,134 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
 ############################################################
 # github source: https://github.com/xuannianz/EfficientDet/blob/master/model.py
 
+def get_dropout(**kwargs):
+    """Wrapper over custom dropout. Fix problem of ``None`` shape for tf.keras.
+    It is not possible to define FixedDropout class as global object,
+    because we do not have modules for inheritance at first time.
+
+    Issue:
+        https://github.com/tensorflow/tensorflow/issues/30946
+    """
+    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
+
+    class FixedDropout(layers.Dropout):
+        def _get_noise_shape(self, inputs):
+            if self.noise_shape is None:
+                return self.noise_shape
+
+            symbolic_shape = backend.shape(inputs)
+            noise_shape = [symbolic_shape[axis] if shape is None else shape
+                           for axis, shape in enumerate(self.noise_shape)]
+            return tuple(noise_shape)
+
+    return FixedDropout
+
+def round_filters(filters, width_coefficient, depth_divisor):
+    """Round number of filters based on width multiplier."""
+
+    filters *= width_coefficient
+    new_filters = int(filters + depth_divisor / 2) // depth_divisor * depth_divisor
+    new_filters = max(depth_divisor, new_filters)
+    # Make sure that round down does not go down by more than 10%.
+    if new_filters < 0.9 * filters:
+        new_filters += depth_divisor
+    return int(new_filters)
+
+
+def round_repeats(repeats, depth_coefficient):
+    """Round number of repeats based on depth multiplier."""
+
+    return int(math.ceil(depth_coefficient * repeats))
+
+def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', freeze_bn=False):
+    """Mobile Inverted Residual Bottleneck."""
+
+    has_se = (block_args.se_ratio is not None) and (0 < block_args.se_ratio <= 1)
+    bn_axis = 3 if backend.image_data_format() == 'channels_last' else 1
+
+    # workaround over non working dropout with None in noise_shape in tf.keras
+    Dropout = get_dropout(
+        backend=backend,
+        layers=layers,
+        models=models,
+        utils=keras_utils
+    )
+
+    # Expansion phase
+    filters = block_args.input_filters * block_args.expand_ratio
+    if block_args.expand_ratio != 1:
+        x = layers.Conv2D(filters, 1,
+                          padding='same',
+                          use_bias=False,
+                          kernel_initializer=CONV_KERNEL_INITIALIZER,
+                          name=prefix + 'expand_conv')(inputs)
+        # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'expand_bn')(x)
+        x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'expand_bn')(x)
+        x = layers.Activation(activation, name=prefix + 'expand_activation')(x)
+    else:
+        x = inputs
+
+    # Depthwise Convolution
+    x = layers.DepthwiseConv2D(block_args.kernel_size,
+                               strides=block_args.strides,
+                               padding='same',
+                               use_bias=False,
+                               depthwise_initializer=CONV_KERNEL_INITIALIZER,
+                               name=prefix + 'dwconv')(x)
+    # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'bn')(x)
+    x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'bn')(x)
+    x = layers.Activation(activation, name=prefix + 'activation')(x)
+
+    # Squeeze and Excitation phase
+    if has_se:
+        num_reduced_filters = max(1, int(
+            block_args.input_filters * block_args.se_ratio
+        ))
+        se_tensor = layers.GlobalAveragePooling2D(name=prefix + 'se_squeeze')(x)
+
+        target_shape = (1, 1, filters) if backend.image_data_format() == 'channels_last' else (filters, 1, 1)
+        se_tensor = layers.Reshape(target_shape, name=prefix + 'se_reshape')(se_tensor)
+        se_tensor = layers.Conv2D(num_reduced_filters, 1,
+                                  activation=activation,
+                                  padding='same',
+                                  use_bias=True,
+                                  kernel_initializer=CONV_KERNEL_INITIALIZER,
+                                  name=prefix + 'se_reduce')(se_tensor)
+        se_tensor = layers.Conv2D(filters, 1,
+                                  activation='sigmoid',
+                                  padding='same',
+                                  use_bias=True,
+                                  kernel_initializer=CONV_KERNEL_INITIALIZER,
+                                  name=prefix + 'se_expand')(se_tensor)
+        if backend.backend() == 'theano':
+            # For the Theano backend, we have to explicitly make
+            # the excitation weights broadcastable.
+            pattern = ([True, True, True, False] if backend.image_data_format() == 'channels_last'
+                       else [True, False, True, True])
+            se_tensor = layers.Lambda(
+                lambda x: backend.pattern_broadcast(x, pattern),
+                name=prefix + 'se_broadcast')(se_tensor)
+        x = layers.multiply([x, se_tensor], name=prefix + 'se_excite')
+
+    # Output phase
+    x = layers.Conv2D(block_args.output_filters, 1,
+                      padding='same',
+                      use_bias=False,
+                      kernel_initializer=CONV_KERNEL_INITIALIZER,
+                      name=prefix + 'project_conv')(x)
+    # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'project_bn')(x)
+    x = layers.BatchNormalization(axis=bn_axis, name=prefix + 'project_bn')(x)
+    if block_args.id_skip and all(
+            s == 1 for s in block_args.strides
+    ) and block_args.input_filters == block_args.output_filters:
+        if drop_rate and (drop_rate > 0):
+            x = Dropout(drop_rate,
+                        noise_shape=(None, 1, 1, 1),
+                        name=prefix + 'drop')(x)
+        x = layers.add([x, inputs], name=prefix + 'add')
+
+    return x
+
 
 ############################################################
 #  ConvNeXt V1
