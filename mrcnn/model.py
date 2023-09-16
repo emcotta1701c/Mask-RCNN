@@ -82,7 +82,9 @@ def compute_backbone_shapes(config, image_shape):
     # assert config.BACKBONE in ["resnet50", "resnet101", "resnet152"]
     backbones = ["resnet50", "resnet101", "resnet152", "resnext50", "resnext101", "resnext152",
                 "convnext_v1", "convnext_v1_base", "convnext_v1_large", "convnext_v1_xlarge",
-                "convnext_v2", "convnext_v2_base", "convnext_v2_large", "convnext_v2_xlarge"]
+                "convnext_v2", "convnext_v2_base", "convnext_v2_large", "convnext_v2_xlarge",
+                "efficientnet_b0", "efficientnet_b1", "efficientnet_b2", "efficientnet_b3",
+                "efficientnet_b4", "efficientnet_b5", "efficientnet_b6", "efficientnet_b7"]
     assert config.BACKBONE in backbones
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
@@ -537,7 +539,7 @@ def get_swish():
     return KL.Activation('swish')(x)
     # return x * KL.Activation('sigmoid')(x)
 
-def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
+def efficientnet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
     """Mobile Inverted Residual Bottleneck."""
 
     has_se = (block_args.se_ratio is not None) and (0 < block_args.se_ratio <= 1)
@@ -723,7 +725,7 @@ def efficient_net_graph(input_image, architecture, input_side, batch_size,
         # def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
         # The first block of each stage needs to take care of stride and filter size increase.
         # Corresponds to a downsampling block as opposed to an identity block
-        x = efficientdet_conv_block(x, block_args,
+        x = efficientnet_conv_block(x, block_args,
                           activation=activation,
                           drop_rate=drop_rate,
                           prefix='block{}a_'.format(idx + 1),
@@ -741,7 +743,7 @@ def efficient_net_graph(input_image, architecture, input_side, batch_size,
                     stage_ind + 1,
                     string.ascii_lowercase[block_ind + 1]
                 )
-                x = efficientdet_conv_block(x, block_args,
+                x = efficientnet_conv_block(x, block_args,
                                   activation=activation,
                                   drop_rate=drop_rate,
                                   prefix=block_prefix,
@@ -758,7 +760,8 @@ def efficient_net_graph(input_image, architecture, input_side, batch_size,
             results.append(x)
     
     # here, not considering stage5=False for now
-    assert results.shape()[0] == 5, "efficient_net_graph() error, not returning feature maps from 5 stages: " + str(results.shape())
+    assert len(results) == 5, "efficient_net_graph() error, not returning P3-P7. Current length (should be 5): " + str(len(results))
+    
     return results
 
 
@@ -2766,6 +2769,9 @@ class MaskRCNN():
             else if "convnext_v2" in config.BACKBONE:
                 _, C2, C3, C4, C5 = convnext_v2_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True)
+            else if "efficientnet" in config.BACKBONE:
+                _, C2, C3, C4, C5 = efficientnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
+                                            config.BATCH_SIZE, stage5=True)
             else:
                 raise AssertionError ("Incompatible backbone: " + config.BACKBONE)
         # Top-down Layers

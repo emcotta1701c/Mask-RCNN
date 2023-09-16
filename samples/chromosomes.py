@@ -95,14 +95,30 @@ class ChromosomeConfig(Config):
     IMAGE_RESIZE_MODE = "square"
     IMAGE_MIN_DIM = 2048
     IMAGE_MAX_DIM = 2048
-    IMAGE_CHANNEL_COUNT = 1   # implement this later
+    IMAGE_CHANNEL_COUNT = 1
     MEAN_PIXEL = np.array([255/2.0])  # implement this later
-    USE_MINI_MASK = False
+    USE_MINI_MASK = False   # implement this later
     MASK_SHAPE = [28, 28]   # change later
-    MAX_GT_INSTANCES = 100
+    MAX_GT_INSTANCES = 100  # can change later
+    # can also implement crowding management later
+    # can also implement data rotation augmentation later
+    self.USE_SOFT_NMS = True # custom ChromosomeConfig value; F / T: NMS / Soft-NMS
 
-    # Supported backbones: resnet50, resnet101, resnet152
+    # Supported backbones:
+    """
+    ["resnet50", "resnet101", "resnet152", "resnext50", "resnext101", "resnext152",
+    "convnext_v1", "convnext_v1_base", "convnext_v1_large", "convnext_v1_xlarge",
+    "convnext_v2", "convnext_v2_base", "convnext_v2_large", "convnext_v2_xlarge",
+    "efficientnet_b0", "efficientnet_b1", "efficientnet_b2", "efficientnet_b3",
+    "efficientnet_b4", "efficientnet_b5", "efficientnet_b6", "efficientnet_b7"]
+    """
     BACKBONE = "resnet101"
+
+    BACKBONE_STRIDES = [4, 8, 16, 32, 64]
+
+    if "efficientnet" in BACKBONE_STRIDES:
+        for i in range(len(BACKBONE_STRIDES)):
+            BACKBONE_STRIDES[i] *= 2
 
 
 ############################################################
