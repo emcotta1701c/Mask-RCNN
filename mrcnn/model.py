@@ -450,9 +450,48 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
     return stage_outputs
 
 ############################################################
-#  EfficientDet - TO-DO
+#  EfficientDet (EfficientNet, is EfficientDet if also include Bi-FPN)
 ############################################################
 # github source: https://github.com/xuannianz/EfficientDet/blob/master/model.py
+
+EFF_DEFAULT_BLOCKS_ARGS = [
+    BlockArgs(kernel_size=3, num_repeat=1, input_filters=32, output_filters=16,
+              expand_ratio=1, id_skip=True, strides=[1, 1], se_ratio=0.25),
+    BlockArgs(kernel_size=3, num_repeat=2, input_filters=16, output_filters=24,
+              expand_ratio=6, id_skip=True, strides=[2, 2], se_ratio=0.25),
+    BlockArgs(kernel_size=5, num_repeat=2, input_filters=24, output_filters=40,
+              expand_ratio=6, id_skip=True, strides=[2, 2], se_ratio=0.25),
+    BlockArgs(kernel_size=3, num_repeat=3, input_filters=40, output_filters=80,
+              expand_ratio=6, id_skip=True, strides=[2, 2], se_ratio=0.25),
+    BlockArgs(kernel_size=5, num_repeat=3, input_filters=80, output_filters=112,
+              expand_ratio=6, id_skip=True, strides=[1, 1], se_ratio=0.25),
+    BlockArgs(kernel_size=5, num_repeat=4, input_filters=112, output_filters=192,
+              expand_ratio=6, id_skip=True, strides=[2, 2], se_ratio=0.25),
+    BlockArgs(kernel_size=3, num_repeat=1, input_filters=192, output_filters=320,
+              expand_ratio=6, id_skip=True, strides=[1, 1], se_ratio=0.25)
+]
+
+EFF_CONV_KERNEL_INITIALIZER = {
+    'class_name': 'VarianceScaling',
+    'config': {
+        'scale': 2.0,
+        'mode': 'fan_out',
+        # EfficientNet actually uses an untruncated normal distribution for
+        # initializing conv layers, but keras.initializers.VarianceScaling use
+        # a truncated distribution.
+        # We decided against a custom initializer for better serializability.
+        'distribution': 'normal'
+    }
+}
+
+EFF_DENSE_KERNEL_INITIALIZER = {
+    'class_name': 'VarianceScaling',
+    'config': {
+        'scale': 1. / 3.,
+        'mode': 'fan_out',
+        'distribution': 'uniform'
+    }
+}
 
 def get_dropout(**kwargs):
     """Wrapper over custom dropout. Fix problem of ``None`` shape for tf.keras.
@@ -493,6 +532,11 @@ def round_repeats(repeats, depth_coefficient):
 
     return int(math.ceil(depth_coefficient * repeats))
 
+def get_swish():
+    # hopefully, this works
+    return KL.Activation('swish')(x)
+    # return x * KL.Activation('sigmoid')(x)
+
 def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, prefix='', train_bn=False):
     """Mobile Inverted Residual Bottleneck."""
 
@@ -510,7 +554,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
     # Expansion phase
     filters = block_args.input_filters * block_args.expand_ratio
     if block_args.expand_ratio != 1:
-        x = KL.Conv2D(filters, 1, padding='same', use_bias=False, kernel_initializer=CONV_KERNEL_INITIALIZER,
+        x = KL.Conv2D(filters, 1, padding='same', use_bias=False, kernel_initializer=EFF_CONV_KERNEL_INITIALIZER,
                           name=prefix + 'expand_conv')(inputs)
         # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'expand_bn')(x)
         x = BatchNorm(axis=bn_axis, name=prefix + 'expand_bn')(x, training=train_bn)
@@ -523,7 +567,7 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                                strides=block_args.strides,
                                padding='same',
                                use_bias=False,
-                               depthwise_initializer=CONV_KERNEL_INITIALIZER,
+                               depthwise_initializer=EFF_CONV_KERNEL_INITIALIZER,
                                name=prefix + 'dwconv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'bn')(x)
     x = BatchNorm(axis=bn_axis, name=prefix + 'bn')(x, training=train_bn)
@@ -542,14 +586,15 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
                                   activation=activation,
                                   padding='same',
                                   use_bias=True,
-                                  kernel_initializer=CONV_KERNEL_INITIALIZER,
+                                  kernel_initializer=EFF_CONV_KERNEL_INITIALIZER,
                                   name=prefix + 'se_reduce')(se_tensor)
         se_tensor = KL.Conv2D(filters, 1,
                                   activation='sigmoid',
                                   padding='same',
                                   use_bias=True,
-                                  kernel_initializer=CONV_KERNEL_INITIALIZER,
+                                  kernel_initializer=EFF_CONV_KERNEL_INITIALIZER,
                                   name=prefix + 'se_expand')(se_tensor)
+        """
         if backend.backend() == 'theano':
             # For the Theano backend, we have to explicitly make
             # the excitation weights broadcastable.
@@ -558,13 +603,14 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
             se_tensor = KL.Lambda(
                 lambda x: backend.pattern_broadcast(x, pattern),
                 name=prefix + 'se_broadcast')(se_tensor)
+        """
         x = KL.multiply([x, se_tensor], name=prefix + 'se_excite')
 
     # Output phase
     x = KL.Conv2D(block_args.output_filters, 1,
                       padding='same',
                       use_bias=False,
-                      kernel_initializer=CONV_KERNEL_INITIALIZER,
+                      kernel_initializer=EFF_CONV_KERNEL_INITIALIZER,
                       name=prefix + 'project_conv')(x)
     # x = BatchNormalization(freeze=freeze_bn, axis=bn_axis, name=prefix + 'project_bn')(x)
     x = BatchNorm(axis=bn_axis, name=prefix + 'project_bn')(x, training=train_bn)
@@ -575,13 +621,10 @@ def efficientdet_conv_block(inputs, block_args, activation, drop_rate=None, pref
 
     return x
 
-def efficient_net_graph(input_image, input_side, batch_size, width_coefficient,
-                 depth_coefficient,
-                 default_resolution,
-                 dropout_rate=0.2,
+def efficient_net_graph(input_image, architecture, input_side, batch_size,
                  drop_connect_rate=0.2,
                  depth_divisor=8,
-                 blocks_args=DEFAULT_BLOCKS_ARGS,
+                 blocks_args=EFF_DEFAULT_BLOCKS_ARGS,
                  stage5=True,
                  train_bn=False,
                  **kwargs):
@@ -630,6 +673,20 @@ def efficient_net_graph(input_image, input_side, batch_size, width_coefficient,
     """
     assert stage5==True, "efficient_net_graph() does not support stage5==False"
 
+    # validate architecture string
+    models = []
+    for i in range(8):
+        models.append('efficientnet_b' + str(i))
+    assert architecture in models, "efficientnet_graph(), invalid architecture name: " + architecture
+    # select architecture
+    model_ind = models.index(architecture)
+    params = [[1.0, 1.0, 224, 0.2], [1.0, 1.1, 240, 0.2],
+            [1.1, 1.2, 260, 0.3], [1.2, 1.4, 300, 0.3],
+            [1.4, 1.8, 380, 0.4], [1.6, 2.2, 456, 0.4],
+            [1.8, 2.6, 528, 0.5], [2.0, 3.1, 600, 0.5]]
+    
+    width_coefficient, depth_coefficient, default_resolution, dropout_rate = params[model_ind]
+
     bn_axis = 3 # channels_last
     activation = get_swish(**kwargs)
 
@@ -643,7 +700,7 @@ def efficient_net_graph(input_image, input_side, batch_size, width_coefficient,
                       strides=(2, 2),
                       padding='same',
                       use_bias=False,
-                      kernel_initializer=CONV_KERNEL_INITIALIZER,
+                      kernel_initializer=EFF_CONV_KERNEL_INITIALIZER,
                       input_shape=(batch_size, input_side, input_side, 1),
                       name='stem_conv')(image_input)
     x = BatchNorm(axis=bn_axis, name='stem_bn')(x, training=train_bn)
@@ -696,14 +753,13 @@ def efficient_net_graph(input_image, input_side, batch_size, width_coefficient,
         elif stage_ind == len(blocks_args) - 1:
             features.append(x)
         """
-        # Add feature maps from P3-P7
+        # Add feature maps from P3-P7 to results list
         if stage_ind >= 3:
-            features.append(x)
+            results.append(x)
     
     # here, not considering stage5=False for now
-    assert features.shape()[0] == 5, "efficient_net_graph() error, not returning feature maps from 5 stages."
-    return features
-
+    assert results.shape()[0] == 5, "efficient_net_graph() error, not returning feature maps from 5 stages: " + str(results.shape())
+    return results
 
 
 
