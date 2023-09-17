@@ -457,6 +457,13 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
 ############################################################
 # github source: https://github.com/xuannianz/EfficientDet/blob/master/model.py
 
+import collections
+
+BlockArgs = collections.namedtuple('BlockArgs', [
+    'kernel_size', 'num_repeat', 'input_filters', 'output_filters',
+    'expand_ratio', 'id_skip', 'strides', 'se_ratio'
+])
+
 EFF_DEFAULT_BLOCKS_ARGS = [
     BlockArgs(kernel_size=3, num_repeat=1, input_filters=32, output_filters=16,
               expand_ratio=1, id_skip=True, strides=[1, 1], se_ratio=0.25),
