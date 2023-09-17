@@ -933,7 +933,7 @@ def convnext_v2_block(input_tensor, dim, drop_path=0.):
     x = KL.LayerNormalization(epsilon=1e-6)(x)
     x = KL.Dense(4 * dim)(x)
     x = KL.Activation('gelu')(x)
-    x = GELU(4 * dim, name=f"{kwargs['name']}_grn")
+    x = GELU(4 * dim, name=kwargs['name']+'_grn')
     x = KL.Dense(dim)(x)
     x = DropPath()(x)
     x = KL.Add()([input_tensor, x])
@@ -2960,7 +2960,7 @@ class MaskRCNN():
                 print("class MaskRCNN build() error: Incompatible backbone selected.")
                 print("Your backbone string:", config.BACKBONE)
                 print("Will default to ResNet 50 backbone.")
-                
+
                 C1, C2, C3, C4, C5 = resnet_graph(input_image, 'resnet50', config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
 
