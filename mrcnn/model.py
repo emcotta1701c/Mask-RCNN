@@ -840,7 +840,7 @@ def convnext_v1_block(input_tensor, dim, drop_path=0., layer_scale_init_value=1e
     x = KL.Add()([input_tensor, x])
     return x
 
-def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=False)   
+def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=False):
     versions = ['v1', 'v2']
     assert version in versions, "convnext_graph(), incompatible version passed ('v1' or 'v2' only)."
 
