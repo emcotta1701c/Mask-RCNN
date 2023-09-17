@@ -69,6 +69,10 @@ class Config(object):
     # Size of the top-down layers used to build the feature pyramid
     TOP_DOWN_PYRAMID_SIZE = 256
 
+    # Bi-FPN
+    USE_BIFPN = False
+    BIFPN_NUM_LAYERS = 8
+
     # Number of classification classes (including background)
     NUM_CLASSES = 1  # Override in sub-classes
 

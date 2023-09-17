@@ -119,6 +119,11 @@ class ChromosomeConfig(Config):
     if "efficientnet" in BACKBONE_STRIDES:
         for i in range(len(BACKBONE_STRIDES)):
             BACKBONE_STRIDES[i] *= 2
+    
+    # Bi-FPN and FPN parameters
+    TOP_DOWN_PYRAMID_SIZE = 256
+    USE_BIFPN = False
+    BIFPN_NUM_LAYERS = 8
 
 
 ############################################################
@@ -154,7 +159,7 @@ class ChromosomeDataset(utils.Dataset):
 
         # Add images - should be .png, maybe .tif or .tiff ok too
         for image_id in image_ids:
-            image_id = image_id.split('.')[0]   # do not use '.' in filename
+            image_id = image_id.split('.')[0]   # does not include file type in image_id string
             # path=os.path.join(image_dir, "{}.png".format(image_id))
             path=os.path.join(image_dir, "{}.tif".format(image_id))
             ann_path = os.path.join(ann_dir, "{}.json".format(image_id))
