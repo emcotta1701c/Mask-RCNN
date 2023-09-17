@@ -864,8 +864,7 @@ def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=Fa
                 x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name='block_'+stage_ind+'_'+block_ind)(x)
             elif version == 'v2':
                 x = convnext_v2_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name='block_'+stage_ind+'_'+block_ind)(x)
-            else:
-                raise AssertionError, "convnext_graph(), failed convnext version control if statement."
+            
         C = x
         stage_outputs.append(C)
         depth_counter += depths[stage_ind]
@@ -894,8 +893,6 @@ def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5
         dim = [192, 384, 768, 1536]
     elif ind == 3:
         dim = [256, 512, 1024, 2048]
-    else:
-        raise AssertionError, "Error in convnext_v1_graph(), somehow failed if stmt conditions"
     
     version = 'v1'
     
@@ -956,8 +953,6 @@ def convnext_v2_graph(input_tensor, architecture, input_side, batch_size, stage5
         dim = [192, 384, 768, 1536]
     elif ind == 3:
         dim = [256, 512, 1024, 2048]
-    else:
-        raise AssertionError, "Error in convnext_v2_graph(), somehow failed if stmt conditions"
     
     version = 'v2'
     
@@ -2962,7 +2957,12 @@ class MaskRCNN():
                 C1, C2, C3, C4, C5 = efficientnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                             config.BATCH_SIZE, stage5=True)
             else:
-                raise AssertionError ("Incompatible backbone: " + config.BACKBONE)
+                print("class MaskRCNN build() error: Incompatible backbone selected.")
+                print("Your backbone string:", config.BACKBONE)
+                print("Will default to ResNet 50 backbone.")
+                
+                C1, C2, C3, C4, C5 = resnet_graph(input_image, 'resnet50', config.IMAGE_MAX_DIM,
+                                             config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
 
         # Top-down Layers
         if config.USE_BIFPN:
