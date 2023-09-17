@@ -349,44 +349,45 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
                     cardinality=32, width=4, weight_decay=5e-4):
     # cardinality and width same as in paper
     # Arguments
-        """
-            depth: number or layers in the each block, defined as a list.
-                ResNeXt-50 can be defined as [3, 4, 6, 3].
-                ResNeXt-101 can be defined as [3, 4, 23, 3].
-                Defaults is ResNeXt-50.
-            cardinality: the size of the set of transformations
-            width: multiplier to the ResNeXt width (number of filters)
-            weight_decay: weight decay (l2 norm)
-            include_top: whether to include the fully-connected
-                layer at the top of the network.
-            weights: `None` (random initialization) or `imagenet` (trained
-                on ImageNet)
-            input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
-                to use as image input for the model.
-            input_shape: optional shape tuple, only to be specified
-                if `include_top` is False (otherwise the input shape
-                has to be `(224, 224, 3)` (with `tf` dim ordering)
-                or `(3, 224, 224)` (with `th` dim ordering).
-                It should have exactly 3 inputs channels,
-                and width and height should be no smaller than 8.
-                E.g. `(200, 200, 3)` would be one valid value.
-            pooling: Optional pooling mode for feature extraction
-                when `include_top` is `False`.
-                - `None` means that the output of the model will be
-                    the 4D tensor output of the
-                    last convolutional layer.
-                - `avg` means that global average pooling
-                    will be applied to the output of the
-                    last convolutional layer, and thus
-                    the output of the model will be a 2D tensor.
-                - `max` means that global max pooling will
-                    be applied.
-            classes: optional number of classes to classify images
-                into, only to be specified if `include_top` is True, and
-                if no `weights` argument is specified.
-        # Returns
-            A Keras model instance.
-        """
+    """
+        depth: number or layers in the each block, defined as a list.
+            ResNeXt-50 can be defined as [3, 4, 6, 3].
+            ResNeXt-101 can be defined as [3, 4, 23, 3].
+            Defaults is ResNeXt-50.
+        cardinality: the size of the set of transformations
+        width: multiplier to the ResNeXt width (number of filters)
+        weight_decay: weight decay (l2 norm)
+        include_top: whether to include the fully-connected
+            layer at the top of the network.
+        weights: `None` (random initialization) or `imagenet` (trained
+            on ImageNet)
+        input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
+            to use as image input for the model.
+        input_shape: optional shape tuple, only to be specified
+            if `include_top` is False (otherwise the input shape
+            has to be `(224, 224, 3)` (with `tf` dim ordering)
+            or `(3, 224, 224)` (with `th` dim ordering).
+            It should have exactly 3 inputs channels,
+            and width and height should be no smaller than 8.
+            E.g. `(200, 200, 3)` would be one valid value.
+        pooling: Optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model will be
+                the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a 2D tensor.
+            - `max` means that global max pooling will
+                be applied.
+        classes: optional number of classes to classify images
+            into, only to be specified if `include_top` is True, and
+            if no `weights` argument is specified.
+    # Returns
+        A Keras model instance.
+    """
+    
     stage_depths = []
     assert architecture in ["resnext50", "resnext101", "resnext152"]
 
