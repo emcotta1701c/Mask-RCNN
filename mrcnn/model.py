@@ -1735,7 +1735,7 @@ class BiFPN_Node(KL.Layer):
 
         self.w = self.add_weight(
             # shape=(num_inputs, batch_size, self.channels),
-            shape=(num_inputs, self.channels)
+            shape=(num_inputs, self.channels),
             initializer="ones",
             trainable=True
         )
