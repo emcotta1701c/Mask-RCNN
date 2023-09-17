@@ -846,7 +846,7 @@ def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=Fa
 
     numStages = 4
     if not stage5:
-        numStages--
+        numStages -= 1
     
     stage_outputs = list()
     
