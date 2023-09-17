@@ -810,7 +810,7 @@ class LayerScale(KL.Layer):
             return
 
         self.gamma = tf.Variable(initial_value=init_value * tf.ones((dim)),
-                            trainable=True, name=f'{name}/gamma', dtype=self.compute_dtype)
+                            trainable=True, name=name+'/gamma', dtype=self.compute_dtype)
     
     def call(self, x):
         if self.gamma is not None:
@@ -861,9 +861,9 @@ def convnext_graph(input_tensor, dim, input_side, batch_size, version, stage5=Fa
 
         for block_ind in range(depths[i]):  # fills in blocks for stages 2-5
             if version == 'v1':
-                x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
+                x = convnext_v1_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name='block_'+stage_ind+'_'+block_ind)(x)
             elif version == 'v2':
-                x = convnext_v2_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name=f'block_{stage_ind}_{block_ind}')(x)
+                x = convnext_v2_block(dims[i], drop_path=dp_rates[depth_counter + block_ind], name='block_'+stage_ind+'_'+block_ind)(x)
             else:
                 raise AssertionError, "convnext_graph(), failed convnext version control if statement."
         C = x
@@ -917,13 +917,13 @@ class GRN(KL.Layer):
             initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
             trainable=True,
             dtype=self.compute_dtype,
-            name=f'{name}/gamma'
+            name=name+'/gamma'
         )
         self.beta = tf.Variable(
             initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
             trainable=True,
             dtype=self.compute_dtype,
-            name=f'{name}/beta'
+            name=name+'/beta'
         )
 
     def call(self, x):
