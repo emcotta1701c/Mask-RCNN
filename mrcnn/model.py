@@ -393,7 +393,7 @@ def resnext_graph(input_tensor, architecture, input_side, batch_size, stage5=Fal
 
     if architecture == "resnext50":
         stage_depths = [3,4,6,3]
-    else if architecture == "resnext101":
+    elif architecture == "resnext101":
         stage_depths = [3,4,23,3]
     else:
         stage_depths = [3,8,34,6]
@@ -2949,16 +2949,16 @@ class MaskRCNN():
             if "resnet" in config.BACKBONE:
                 C1, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
-            else if "resnext" in config.BACKBONE:
+            elif "resnext" in config.BACKBONE:
                 C1, C2, C3, C4, C5 = resnext_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True, train_bn=config.TRAIN_BN)
-            else if "convnext_v1" in config.BACKBONE:
+            elif "convnext_v1" in config.BACKBONE:
                 C1, C2, C3, C4, C5 = convnext_v1_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True)
-            else if "convnext_v2" in config.BACKBONE:
+            elif "convnext_v2" in config.BACKBONE:
                 C1, C2, C3, C4, C5 = convnext_v2_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                              config.BATCH_SIZE, stage5=True)
-            else if "efficientnet" in config.BACKBONE:
+            elif "efficientnet" in config.BACKBONE:
                 C1, C2, C3, C4, C5 = efficientnet_graph(input_image, config.BACKBONE, config.IMAGE_MAX_DIM,
                                             config.BATCH_SIZE, stage5=True)
             else:
