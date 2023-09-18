@@ -3218,19 +3218,19 @@ class MaskRCNN():
                                 md5_hash='a268eb855778b3df3c7506639542a6af')
         return weights_path
 
-    def compile(self, learning_rate, momentum, optimizer):
+    def compile(self, learning_rate, momentum, optim):
         """Gets the model ready for training. Adds losses, regularization, and
         metrics. Then calls the Keras compile() function.
         """
         opts = ['SGD', 'AdamW']
-        assert opt in opts, "MaskRCNN compile(), invalid optimizer string"
+        assert optim in opts, "MaskRCNN compile(), invalid optimizer string"
 
-        if opt == 'SGD':
+        if optim == 'SGD':
             # Optimizer object
             optimizer = keras.optimizers.SGD(
                 lr=learning_rate, momentum=momentum,
                 clipnorm=self.config.GRADIENT_CLIP_NORM)
-        elif opt == 'AdamW':
+        elif optim == 'AdamW':
             # Optimizer object
             optimizer = keras.optimizers.AdamW(
                 lr=learning_rate, momentum=momentum,
