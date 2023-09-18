@@ -125,6 +125,9 @@ class ChromosomeConfig(Config):
     USE_BIFPN = False
     BIFPN_NUM_LAYERS = 8
 
+    # can choose btw: 'SGD', 'AdamW'
+    OPTIMIZER = 'SGD'
+
 
 ############################################################
 #  Dataset

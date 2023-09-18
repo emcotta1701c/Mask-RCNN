@@ -3218,14 +3218,24 @@ class MaskRCNN():
                                 md5_hash='a268eb855778b3df3c7506639542a6af')
         return weights_path
 
-    def compile(self, learning_rate, momentum):
+    def compile(self, learning_rate, momentum, optimizer):
         """Gets the model ready for training. Adds losses, regularization, and
         metrics. Then calls the Keras compile() function.
         """
-        # Optimizer object
-        optimizer = keras.optimizers.SGD(
-            lr=learning_rate, momentum=momentum,
-            clipnorm=self.config.GRADIENT_CLIP_NORM)
+        opts = ['SGD', 'AdamW']
+        assert opt in opts, "MaskRCNN compile(), invalid optimizer string"
+
+        if opt == 'SGD':
+            # Optimizer object
+            optimizer = keras.optimizers.SGD(
+                lr=learning_rate, momentum=momentum,
+                clipnorm=self.config.GRADIENT_CLIP_NORM)
+        elif opt == 'AdamW':
+            # Optimizer object
+            optimizer = keras.optimizers.AdamW(
+                lr=learning_rate, momentum=momentum,
+                clipnorm=self.config.GRADIENT_CLIP_NORM)
+
         # Add Losses
         # First, clear previously set losses to avoid duplication
         self.keras_model._losses = []
@@ -3432,7 +3442,7 @@ class MaskRCNN():
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
         log("Checkpoint Path: {}".format(self.checkpoint_path))
         self.set_trainable(layers)
-        self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
+        self.compile(learning_rate, self.config.LEARNING_MOMENTUM, self.config.OPTIMIZER)
 
         # Work-around for Windows: Keras fails on Windows when using
         # multiprocessing workers. See discussion here:
