@@ -486,8 +486,7 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE,
                     epochs=2,
                     layers='heads',
-                    augmentation=augmentation,
-                    dynamic=config.USE_DYNAMIC)
+                    augmentation=augmentation)
 
         # Training - Stage 2
         # Finetune layers from ResNet stage 4 and up
@@ -503,8 +502,7 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE,
                     epochs=2,
                     layers='4+',
-                    augmentation=augmentation,
-                    dynamic=config.USE_DYNAMIC)
+                    augmentation=augmentation)
 
         # Training - Stage 3
         # Fine tune all layers
@@ -520,8 +518,7 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE / 10,
                     epochs=2,
                     layers='all',
-                    augmentation=augmentation,
-                    dynamic=config.USE_DYNAMIC)
+                    augmentation=augmentation)
 
     elif args.command == "evaluate":
         model.load_weights(model_path, by_name=True)
