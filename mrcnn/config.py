@@ -226,6 +226,9 @@ class Config(object):
     # 'SGD', 'AdamW'
     OPTIMIZER = 'SGD'
 
+    # used in fit_generator() - defines number of batches(?) queued for parallel processing per thread
+    MAX_QUEUE_SIZE = 100
+
     def __init__(self):
         """Set values of computed attributes."""
         # Effective batch size
