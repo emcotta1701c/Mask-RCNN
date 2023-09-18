@@ -230,6 +230,8 @@ class Config(object):
     MAX_QUEUE_SIZE = 100
     USE_MULTIPROCESSING = True
 
+    USE_DYNAMIC = False
+
     def __init__(self):
         """Set values of computed attributes."""
         # Effective batch size

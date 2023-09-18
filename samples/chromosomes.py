@@ -132,6 +132,8 @@ class ChromosomeConfig(Config):
     MAX_QUEUE_SIZE = 2  # increase later if resolves "infinite" loop error
     USE_MULTIPROCESSING = True
 
+    USE_DYNAMIC = False # If True, Dynamic R-CNN instead of Mask R-CNN
+
 
 ############################################################
 #  Dataset
@@ -484,7 +486,8 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE,
                     epochs=2,
                     layers='heads',
-                    augmentation=augmentation)
+                    augmentation=augmentation,
+                    dynamic=config.USE_DYNAMIC)
 
         # Training - Stage 2
         # Finetune layers from ResNet stage 4 and up
@@ -500,7 +503,8 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE,
                     epochs=2,
                     layers='4+',
-                    augmentation=augmentation)
+                    augmentation=augmentation,
+                    dynamic=config.USE_DYNAMIC)
 
         # Training - Stage 3
         # Fine tune all layers
@@ -516,7 +520,8 @@ if __name__ == '__main__':
                     learning_rate=config.LEARNING_RATE / 10,
                     epochs=2,
                     layers='all',
-                    augmentation=augmentation)
+                    augmentation=augmentation,
+                    dynamic=config.USE_DYNAMIC)
 
     elif args.command == "evaluate":
         model.load_weights(model_path, by_name=True)
