@@ -228,6 +228,7 @@ class Config(object):
 
     # used in fit_generator() - defines number of batches(?) queued for parallel processing per thread
     MAX_QUEUE_SIZE = 100
+    USE_MULTIPROCESSING = True
 
     def __init__(self):
         """Set values of computed attributes."""
