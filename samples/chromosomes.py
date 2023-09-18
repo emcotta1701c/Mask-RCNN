@@ -129,7 +129,7 @@ class ChromosomeConfig(Config):
     OPTIMIZER = 'SGD'
 
     # used in fit_generator() - defines number of batches(?) queued for parallel processing per thread
-    MAX_QUEUE_SIZE = 1  # increase later if resolves "infinite" loop error
+    MAX_QUEUE_SIZE = 2  # increase later if resolves "infinite" loop error
     USE_MULTIPROCESSING = True
 
 
