@@ -3459,7 +3459,7 @@ class MaskRCNN():
         print("Initial_epoch:", self.epoch)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
-        print("Workers:", workers)
+        print("Workers (for now, hard-coded to 1 per recommendation on Matterport issues):", workers)
             # workers=0, can't read print stmts while generator running
 
         self.keras_model.fit_generator(
@@ -3471,7 +3471,7 @@ class MaskRCNN():
             validation_data=val_generator,
             validation_steps=self.config.VALIDATION_STEPS,
             max_queue_size=self.config.MAX_QUEUE_SIZE,
-            workers=workers,
+            workers=1,  # before, workers=workers
             use_multiprocessing=self.config.USE_MULTIPROCESSING,  # before, use_multiprocessing=True
         )
 
