@@ -3459,7 +3459,7 @@ class MaskRCNN():
         print("Initial_epoch:", self.epoch)
         print("Steps per epoch:", self.config.STEPS_PER_EPOCH)
         print("Validation steps:", self.config.VALIDATION_STEPS)
-        print("Workers (for now, hard-coded to 1 per recommendation on Matterport issues):", workers)
+        print("Workers (for now, hardcoded to 1 per recommendation on Matterport issues for Colab):", workers)
             # workers=0, can't read print stmts while generator running
 
         self.keras_model.fit_generator(
