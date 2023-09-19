@@ -231,6 +231,11 @@ class Config(object):
     USE_MULTIPROCESSING = True
 
     USE_DYNAMIC = False
+    DYNAMIC_KI = 75
+    DYNAMIC_KE = 10
+    DYNAMIC_ITERATION_COUNT = 100
+    DYNAMIC_WARMUP_IOU = 0.4
+    DYNAMIC_WARMUP_BETA = 1.0
 
     def __init__(self):
         """Set values of computed attributes."""

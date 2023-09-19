@@ -1992,6 +1992,71 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
 #  Loss Functions
 ############################################################
 
+#adapt the the following if data is per batch to finish implementing dynamic smoothl1loss
+#from Dynamic R-CNN repo
+"""
+S_I.append(rcnn_iou_new)
+S_E.append(rcnn_error_new)
+if iteration % iteration_count == 0:
+    
+    # rcnn_iou_now = max(sum(S_I) / iteration_count,
+    #                     cfg.MODEL.DYNAMIC_RCNN.WARMUP_IOU)
+    
+    rcnn_beta_now = min(sorted(S_E)[iteration_count // 2],
+                        config.MODEL.DYNAMIC_RCNN.WARMUP_BETA)
+    S_I, S_E = [], []
+"""
+
+"""
+class Dynamic:
+    # This class tracks iou_now, beta_now, and #iterations for training
+    # iou_now and beta_now should be internally updated when #batches passed reaches the iteration_thresh
+
+    def__init__(self, config, beta=1.0):   # these values should come from Config class
+        self.iou_now = config.DYNAMIC_WARMUP_IOU
+        self.iteration_thresh = config.DYNAMIC_ITERATION_COUNT
+        self.beta_now = config.DYNAMIC_WARMUP_BETA
+        self.batch_size = config.BATCH_SIZE    # for now, unclear if this is needed
+
+        self.iteration_count = 0
+        self.S_I = list()
+        self.S_E = list()
+
+        assert self.iou_now > 0 and self.iou_now < 1, "Class Dynamic, warmup_iou_thresh out of range: " + str(warmup_iou_thresh)
+        assert self.iteration_thresh > 0, "Class Dynamic, iteration threshold out of range: " + str(iteration_thresh)
+    
+    # update() must be called per training batch before any calls to dynamic_smooth_l1_loss, but with a list of batch IoU overlaps and regression errors
+    def update(ious, reg_errs, increment=1):   # this function should be called per batch by the MaskRCNN class during training.
+        self.S_I.append(ious)
+        self.S_E.append(reg_errs)
+        self.iteration_count += increment
+
+        if self.iteration_count % self.iteration_thresh == 0 and self.iteration_count != 0:
+            self.iou_now = max(sum(self.S_I) / self.iteration_count, self.iou_now)
+            self.beta_now = min(sorted(self.S_E)[iteration_count // 2], self.beta_now)
+
+            self.iteration_count = 0
+            self.S_I = []
+            self.S_E = []
+    
+    def dynamic_smooth_l1_loss(y_true, y_pred):
+        #delete later
+        assert y_pred.shape[0] == batch_size, "class Dynamic does not yet support input.shape[0] != config BATCH_SIZE"
+
+        return smooth_l1_loss(y_true, y_pred, beta=self.beta_now)
+    
+    def smooth_l1_loss(y_true, y_pred, beta=1.0):
+        diff = K.abs(y_true - y_pred)
+        less_than_beta = K.cast(K.less(diff, beta), "float32")
+        loss = (less_than_one * 0.5 * diff**2 / beta) + (1 - less_than_one) * (diff - 0.5 * beta)
+        return loss
+
+
+"""
+
+
+
+
 def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     """Implements Smooth-L1 loss.
     y_true and y_pred are typically: [N, 4], but could be any shape.
@@ -2013,9 +2078,6 @@ def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     less_than_beta = K.cast(K.less(diff, beta_now), "float32")
     loss = (less_than_one * 0.5 * diff**2 / beta_now) + (1 - less_than_one) * (diff - 0.5 * beta_now)
     return loss
-
-def dynamic_smooth_l1_loss(y_true, y_pred, beta_now):
-    return smooth_l1_loss(y_true, y_pred, beta_now=beta_now)
 
 def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
     #on website, reduction default is 'mean'

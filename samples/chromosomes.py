@@ -132,7 +132,12 @@ class ChromosomeConfig(Config):
     MAX_QUEUE_SIZE = 2  # increase later if resolves "infinite" loop error
     USE_MULTIPROCESSING = True
 
-    USE_DYNAMIC = False # If True, Dynamic R-CNN instead of Mask R-CNN
+    USE_DYNAMIC = False # True/False: Dynamic Mask R-CNN / Mask R-CNN
+    DYNAMIC_KI = 75
+    DYNAMIC_KE = 10
+    DYNAMIC_ITERATION_COUNT = 100
+    DYNAMIC_WARMUP_IOU = 0.4
+    DYNAMIC_WARMUP_BETA = 1.0
 
 
 ############################################################
