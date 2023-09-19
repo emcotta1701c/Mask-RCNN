@@ -1230,7 +1230,8 @@ class PyramidROIAlign(KL.Layer):
 #  Detection Target Layer
 ############################################################
 
-def overlaps_graph(boxes1, boxes2):
+def overlaps_graph(boxes1, boxes2, dynamic):
+    # new param: dynamic object
     """Computes IoU overlaps between two sets of boxes.
     boxes1, boxes2: [N, (y1, x1, y2, x2)].
     """
@@ -1259,7 +1260,7 @@ def overlaps_graph(boxes1, boxes2):
     return overlaps
 
 
-def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config):
+def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config, dynamic):
     """Generates detection targets for one image. Subsamples proposals and
     generates target class IDs, bounding box deltas, and masks for each.
 
@@ -1309,13 +1310,23 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     # Compute overlaps matrix [proposals, gt_boxes]
     overlaps = overlaps_graph(proposals, gt_boxes)
 
+    #delete later
+    print("Just finished computing overlaps matrix in detection_targets_graph()")
+    print("Overlaps matrix shape:", overlaps.shape)
+
     # Compute overlaps with crowd boxes [proposals, crowd_boxes]
+    # Dynamic R-CNN currently does not support crowd_ious
     crowd_overlaps = overlaps_graph(proposals, crowd_boxes)
     crowd_iou_max = tf.reduce_max(crowd_overlaps, axis=1)
     no_crowd_bool = (crowd_iou_max < 0.001)
 
     # Determine positive and negative ROIs
     roi_iou_max = tf.reduce_max(overlaps, axis=1)
+
+    #delete later
+    print("detection_targets_graph(), just found roi_iou_max")
+    print("roi_iou_max shape:", roi_iou_max.shape)
+
     # 1. Positive ROIs are those with >= 0.5 IoU with a GT box
     positive_roi_bool = (roi_iou_max >= 0.5)
     positive_indices = tf.where(positive_roi_bool)[:, 0]
@@ -1338,6 +1349,14 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
 
     # Assign positive ROIs to GT boxes.
     positive_overlaps = tf.gather(overlaps, positive_indices)
+    # Dynamic R-CNN - hoping the positive_overlaps contains all ROI IoU values
+
+    #delete later
+    print("In detection_targets_graph(); positive_overlaps shape: " + positive_overlaps.shape)
+    print("Adding positive overlaps to dynamic's per-batch iou record")
+
+    dynamic.add_ious_to_batch(positive_overlaps)
+
     roi_gt_box_assignment = tf.cond(
         tf.greater(tf.shape(positive_overlaps)[1], 0),
         true_fn = lambda: tf.argmax(positive_overlaps, axis=1),
@@ -1379,6 +1398,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
 
     # Threshold mask pixels at 0.5 to have GT masks be 0 or 1 to use with
     # binary cross entropy loss.
+    # automatically handles multinary masks
     masks = tf.round(masks)
 
     # Append negative ROIs and pad bbox deltas and masks that
@@ -2007,28 +2027,39 @@ if iteration % iteration_count == 0:
     S_I, S_E = [], []
 """
 
-"""
+
 class Dynamic:
+
     # This class tracks iou_now, beta_now, and #iterations for training
     # iou_now and beta_now should be internally updated when #batches passed reaches the iteration_thresh
 
-    def__init__(self, config, beta=1.0):   # these values should come from Config class
+    def__init__(self, config):   # these values should come from Config class
         self.iou_now = config.DYNAMIC_WARMUP_IOU
         self.iteration_thresh = config.DYNAMIC_ITERATION_COUNT
         self.beta_now = config.DYNAMIC_WARMUP_BETA
         self.batch_size = config.BATCH_SIZE    # for now, unclear if this is needed
+        self.K_I = config.DYNAMIC_KI
+        self.K_E = config.DYNAMIC_KE
 
         self.iteration_count = 0
         self.S_I = list()
         self.S_E = list()
 
+        self.batch_all_ious = list()
+
         assert self.iou_now > 0 and self.iou_now < 1, "Class Dynamic, warmup_iou_thresh out of range: " + str(warmup_iou_thresh)
         assert self.iteration_thresh > 0, "Class Dynamic, iteration threshold out of range: " + str(iteration_thresh)
     
     # update() must be called per training batch before any calls to dynamic_smooth_l1_loss, but with a list of batch IoU overlaps and regression errors
-    def update(ious, reg_errs, increment=1):   # this function should be called per batch by the MaskRCNN class during training.
-        self.S_I.append(ious)
-        self.S_E.append(reg_errs)
+    def update(regs, increment=1):   # this function should be called per batch by the MaskRCNN class during training.
+        # assert ious.shape[0] == self.batch_size, "class Dynamic.update(), iou input does not include full batch: " + ious.shape
+        # assert len(ious.shape) == 2, "class Dynamic.update(), unexpected iou input shape: " + ious.shape
+        assert regs.shape[0] == self.batch_size, "class Dynamic.update(), reg input doesn't include batch: " + regs.shape
+        assert len(regs.shape) == 3, "class Dynamic.update(), unexpected reg input shape: " + reg.shape
+
+        update_SI() # expects list of iou intersections between rois and ground truth boxes, for a batch
+        update_SE(regs) # expects list of (x, y, w, h) offsets of box info btw rois and gt boxes, for a batch
+
         self.iteration_count += increment
 
         if self.iteration_count % self.iteration_thresh == 0 and self.iteration_count != 0:
@@ -2039,36 +2070,75 @@ class Dynamic:
             self.S_I = []
             self.S_E = []
     
+    def update_SI():
+        ious = self.batch_all_ious
+        self.batch_all_ious = []
+        # TO-DO: only use ious from second stage rois, NOT every iou in existence
+        # desired ious shape: (b, #rois)
+        ious = np.flatten(ious)
+        # workaround for numpy.sort() not being able to sort in reverse order
+        ious = -1 * np.sort(-1 * ious)
+        iou_new = ious[self.K_I]
+        self.S_I.append(iou_new)
+    
+    def update_SE(regs):
+        # Credit to Chat-GPT 3.5 for help
+        # regs shape: (b, #rois, 4), where the 4 corresponds to [dx, dy, dw, dh]
+
+        abs_dx_dy = np.abs(regression_offsets[:, :, :, :2])
+        mean_abs_dx_dy = np.mean(abs_dx_dy, axis=(2, 3))
+        # shape of mean_abs_dx_dy is expected to be (batch_size, #rois)
+        candidates = np.flatten(mean_abs_dx_dy)
+        candidates = np.sort(candidates)
+        reg_new = candidates[self.K_E]
+        self.S_E.apend(reg_new)
+    
+    def add_ious_to_batch(ious):
+        self.batch_all_ious = np.concatenate(self.batch_all_ious, ious)
+    
     def dynamic_smooth_l1_loss(y_true, y_pred):
         #delete later
-        assert y_pred.shape[0] == batch_size, "class Dynamic does not yet support input.shape[0] != config BATCH_SIZE"
+        assert y_pred.shape[0] == batch_size, "class Dynamic.dynamic_smooth..() test fail: input.shape[0] != config BATCH_SIZE"
 
         return smooth_l1_loss(y_true, y_pred, beta=self.beta_now)
     
     def smooth_l1_loss(y_true, y_pred, beta=1.0):
+        """Implements Smooth-L1 loss.
+            y_true and y_pred are typically: [N, 4], but could be any shape.
+            Ethan - unsure if they are actually batch_size, N, 4
+        """
+
+        """ # Matterport w/o beta argument for vanilla smooth_l1_loss:
+        diff = K.abs(y_true - y_pred)
+        less_than_one = K.cast(K.less(diff, 1.0), "float32")
+        loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
+        return loss
+        """
+
+        #delete later
+        print("smooth_l1_loss(), shape of given data:", y_pred.shape)
+        print("Expecting y_true and y_pred shapes to be: (config.BATCH_SIZE, N, 4).")
+
         diff = K.abs(y_true - y_pred)
         less_than_beta = K.cast(K.less(diff, beta), "float32")
         loss = (less_than_one * 0.5 * diff**2 / beta) + (1 - less_than_one) * (diff - 0.5 * beta)
         return loss
 
 
+
 """
-
-
-
-
 def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
-    """Implements Smooth-L1 loss.
+    Implements Smooth-L1 loss. Adjust quotation marks in this function if uncommenting!
     y_true and y_pred are typically: [N, 4], but could be any shape.
     Ethan - unsure if they are actually batch_size, N, 4
-    """
+    
 
-    """ # Matterport w/o beta_now:
+    # Matterport w/o beta_now:
     diff = K.abs(y_true - y_pred)
     less_than_one = K.cast(K.less(diff, 1.0), "float32")
     loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
     return loss
-    """
+    
 
     #delete later
     print("smooth_l1_loss(), shape of given data:", y_pred.shape)
@@ -2078,6 +2148,7 @@ def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     less_than_beta = K.cast(K.less(diff, beta_now), "float32")
     loss = (less_than_one * 0.5 * diff**2 / beta_now) + (1 - less_than_one) * (diff - 0.5 * beta_now)
     return loss
+"""
 
 def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
     #on website, reduction default is 'mean'
@@ -2142,7 +2213,8 @@ def rpn_class_loss_graph(rpn_match, rpn_class_logits):
     return loss
 
 
-def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
+def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox, dynamic):
+    # Before, params were: (config, target_bbox, rpn_match, rpn_bbox)
     """Return the RPN bounding box loss graph.
 
     config: the model config object.
@@ -2165,7 +2237,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     target_bbox = batch_pack_graph(target_bbox, batch_counts,
                                    config.IMAGES_PER_GPU)
 
-    loss = smooth_l1_loss(target_bbox, rpn_bbox)
+    loss = dynamic.dynamic_smooth_l1_loss(target_bbox, rpn_bbox)
     
     loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0))
     return loss
@@ -2207,7 +2279,8 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
     return loss
 
 
-def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
+def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox, dynamic):
+    # Before, params were (target_bbox, target_class_ids, pred_bbox)
     """Loss for Mask R-CNN bounding box refinement.
 
     target_bbox: [batch, num_rois, (dy, dx, log(dh), log(dw))]
@@ -2230,9 +2303,10 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     target_bbox = tf.gather(target_bbox, positive_roi_ix)
     pred_bbox = tf.gather_nd(pred_bbox, indices)
 
-    # Smooth-L1 Loss
+    # Dynamic Smooth-L1 Loss - to switch back to Matterport Smooth-l1 loss, see orig repo
+    reg_offsets = tf.math.subtract(target_bbox, pred_bbox)  # still need ious
     loss = K.switch(tf.size(target_bbox) > 0,
-                    smooth_l1_loss(y_true=target_bbox, y_pred=pred_bbox),
+                    dynamic.dynamic_smooth_l1_loss(y_true=target_bbox, y_pred=pred_bbox),
                     tf.constant(0.0))
     loss = K.mean(loss)
     return loss
@@ -2961,6 +3035,7 @@ class MaskRCNN():
         self.model_dir = model_dir
         self.set_log_dir()
         self.keras_model = self.build(mode=mode, config=config)
+        self.dynamic = Dynamic(config)  # Dynamic training implementation
 
     def build(self, mode, config):
         """Build Mask R-CNN architecture.
