@@ -3095,6 +3095,13 @@ class MaskRCNN():
                        mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_mask,
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss]
+            
+            #delete later
+            print("MASKRCNN.build() with training mode=True")
+            print("Confirming that losses are calculated per batch.")
+            print("bbox_loss shape:", bbox_loss.shape)
+            print("Expected bbox_loss shape: config.BATCH_SIZE, num_boxes, 4")
+
             model = KM.Model(inputs, outputs, name='mask_rcnn')
         else:
             # Network Heads
