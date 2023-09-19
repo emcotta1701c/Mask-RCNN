@@ -1995,6 +1995,7 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
 def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     """Implements Smooth-L1 loss.
     y_true and y_pred are typically: [N, 4], but could be any shape.
+    Ethan - unsure if they are actually batch_size, N, 4
     """
 
     """ # Matterport w/o beta_now:
@@ -2003,6 +2004,10 @@ def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
     return loss
     """
+
+    #delete later
+    print("smooth_l1_loss(), shape of given data:", y_pred.shape)
+    print("Expecting y_true and y_pred shapes to be: (config.BATCH_SIZE, N, 4).")
 
     diff = K.abs(y_true - y_pred)
     less_than_beta = K.cast(K.less(diff, beta_now), "float32")
