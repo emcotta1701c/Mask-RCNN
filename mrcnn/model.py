@@ -1992,20 +1992,25 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
 #  Loss Functions
 ############################################################
 
-def smooth_l1_loss(y_true, y_pred):
+def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
     """Implements Smooth-L1 loss.
     y_true and y_pred are typically: [N, 4], but could be any shape.
     """
     diff = K.abs(y_true - y_pred)
-    less_than_one = K.cast(K.less(diff, 1.0), "float32")
-    loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
+    # less_than_one = K.cast(K.less(diff, 1.0), "float32")
+    less_than_beta = K.cast(K.less(diff, beta_now), "float32")
+    loss = (less_than_one * 0.5 * diff**2 / beta_now) + (1 - less_than_one) * (diff - 0.5 * beta_now)
     return loss
+
+def dynamic_smooth_l1_loss(y_true, y_pred, beta_now):
+    return smooth_l1_loss(y_true, y_pred, beta_now=beta_now)
 
 def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
     #on website, reduction default is 'mean'
     #y_true and y_pred are typically: [N, 4], but could be any shape.
     #here, gt_bboxes=y_true, and pr_bboxes=y_pred
     #Adioc loss implementation
+    #Consider replacing torch statements with numpy stmts
     #Source: https://github.com/CoinCheung/pytorch-loss/blob/master/generalized_iou_loss.py
 
     import torch
