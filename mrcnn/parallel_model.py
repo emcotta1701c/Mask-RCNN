@@ -105,6 +105,8 @@ class ParallelModel(KM.Model):
 
 
 if __name__ == "__main__":
+    print("Running a simple test model in parallel_model.py; this is not the Mask R-CNN!")
+    
     # Testing code below. It creates a simple model to train on MNIST and
     # tries to run it on 2 GPUs. It saves the graph so it can be viewed
     # in TensorBoard. Run it as:
