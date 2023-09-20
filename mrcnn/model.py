@@ -18,11 +18,19 @@ import multiprocessing
 import numpy as np
 import tensorflow.compat.v1 as tf
 
+"""
 import keras
 import keras.backend as K
 import keras.layers as KL
 # import keras.engine as KE
 import keras.models as KM
+"""
+
+import tensorflow.v1.compat.keras as keras
+import tensorflow.v1.compat.keras.backend as K
+import tensorflow.v1.compat.keras.layers as KL
+# import keras.engine as KE
+import tensorflow.v1.compat.keras.models as KM
 
 # from tensorflow.compat.v1.keras.saving import hdf5_format
 from tensorflow.compat.v1.keras.engine import saving
