@@ -2953,6 +2953,20 @@ class NORM_BOXES_LAYER(KL.Layer):
         x, input_image_shape_info = inputs
         return norm_boxes_graph(x, input_image_shape_info)
 
+# To replace a Lambda layer that defines a tf.Variable
+
+class AnchorsLayer(KL.Layer):
+    def __init__(self, anchors, name="anchors", **kwargs):
+        super(AnchorsLayer, self).__init__(name=name, **kwargs)
+        self.anchors = tf.Variable(anchors)
+
+    def call(self, dummy):
+        return self.anchors
+
+    def get_config(self):
+        config = super(AnchorsLayer, self).get_config()
+        return config
+
 
 class MaskRCNN():
     """Encapsulates the Mask RCNN model functionality.
@@ -3081,7 +3095,8 @@ class MaskRCNN():
             # TODO: can this be optimized to avoid duplicating the anchors?
             anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
             # A hack to get around Keras's bad support for constants
-            anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
+            # anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
+            anchors = AnchorsLayer(anchors, name="anchors")(input_image)
         else:
             anchors = input_anchors
 
