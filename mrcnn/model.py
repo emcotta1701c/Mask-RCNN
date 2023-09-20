@@ -2943,6 +2943,17 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 #  MaskRCNN Class
 ############################################################
 
+# Added to replace lambda layer used to call box_norm_graph()
+
+class NORM_BOXES_LAYER(KL.Layer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, inputs):
+        x, input_image_shape_info = inputs
+        return norm_boxes_graph(x, input_image_shape_info)
+
+
 class MaskRCNN():
     """Encapsulates the Mask RCNN model functionality.
 
@@ -2998,8 +3009,11 @@ class MaskRCNN():
             input_gt_boxes = KL.Input(
                 shape=[None, 4], name="input_gt_boxes", dtype=tf.float32)
             # Normalize coordinates
+            """
             gt_boxes = KL.Lambda(lambda x: norm_boxes_graph(
                 x, K.shape(input_image)[1:3]))(input_gt_boxes)
+            """
+            gt_boxes = NORM_BOXES_LAYER()([input_gt_boxes, K.shape(input_image)[1:3]])
             # 3. GT Masks (zero padded)
             # [batch, height, width, MAX_GT_INSTANCES]
             if config.USE_MINI_MASK:
