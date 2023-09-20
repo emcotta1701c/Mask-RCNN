@@ -27,6 +27,10 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
     python3 chromosomes.py evaluate --dataset=/path/to/dataset/ --model=last
 """
 
+# tf v1 compatibility mode
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 import os
 import sys
 import time

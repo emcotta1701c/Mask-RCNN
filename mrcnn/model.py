@@ -16,10 +16,7 @@ import logging
 from collections import OrderedDict
 import multiprocessing
 import numpy as np
-import tensorflow as tf
-
-# tf v1 compatibility mode
-tf.compat.v1.disable_v2_behavior()
+# import tensorflow as tf
 
 import keras
 import keras.backend as K
@@ -800,11 +797,11 @@ class DropPath(KL.Layer):
 
         # Compute drop_connect tensor
         random_tensor = keep_prob
-        shape = (tf.compat.v1.shape(x)[0],) + (1,) * \
-            (len(tf.compat.v1.shape(x)) - 1)
-        random_tensor += tf.compat.v1.random.uniform(shape, dtype=x.dtype)
-        binary_tensor = tf.compat.v1.floor(random_tensor)
-        output = tf.compat.v1.math.divide(x, keep_prob) * binary_tensor
+        shape = (tf.shape(x)[0],) + (1,) * \
+            (len(tf.shape(x)) - 1)
+        random_tensor += tf.random.uniform(shape, dtype=x.dtype)
+        binary_tensor = tf.floor(random_tensor)
+        output = tf.math.divide(x, keep_prob) * binary_tensor
         return output
 
     def call(self, x, training=None):
@@ -820,7 +817,7 @@ class LayerScale(KL.Layer):
         if init_value <= 0:
             return
 
-        self.gamma = tf.compat.v1.Variable(initial_value=init_value * tf.compat.v1.ones((dim)),
+        self.gamma = tf.Variable(initial_value=init_value * tf.ones((dim)),
                             trainable=True, name=name+'/gamma', dtype=self.compute_dtype)
     
     def call(self, x):
@@ -921,22 +918,22 @@ def convnext_v1_graph(input_tensor, architecture, input_side, batch_size, stage5
 class GRN(KL.Layer):
     def __init__(self, dim, name='grn', **kwargs):
         super().__init__(**kwargs)
-        self.gamma = tf.compat.v1.Variable(
-            initial_value=tf.compat.v1.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
+        self.gamma = tf.Variable(
+            initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
             trainable=True,
             dtype=self.compute_dtype,
             name=name+'/gamma'
         )
-        self.beta = tf.compat.v1.Variable(
-            initial_value=tf.compat.v1.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
+        self.beta = tf.Variable(
+            initial_value=tf.zeros((1, 1, 1, dim), dtype=self.compute_dtype),
             trainable=True,
             dtype=self.compute_dtype,
             name=name+'/beta'
         )
 
     def call(self, x):
-        Gx = tf.compat.v1.norm(x, ord=2, axis=(1,2), keepdims=True)
-        Nx = Gx / (tf.compat.v1.math.reduce_mean(Gx, axis=-1, keepdims=True) + 1e-6)
+        Gx = tf.norm(x, ord=2, axis=(1,2), keepdims=True)
+        Nx = Gx / (tf.math.reduce_mean(Gx, axis=-1, keepdims=True) + 1e-6)
         return ((self.gamma * (x * Nx)) + self.beta) + x
 
 def convnext_v2_block(input_tensor, dim, drop_path=0.):
@@ -986,14 +983,14 @@ def apply_box_deltas_graph(boxes, deltas):
     # Apply deltas
     center_y += deltas[:, 0] * height
     center_x += deltas[:, 1] * width
-    height *= tf.compat.v1.exp(deltas[:, 2])
-    width *= tf.compat.v1.exp(deltas[:, 3])
+    height *= tf.exp(deltas[:, 2])
+    width *= tf.exp(deltas[:, 3])
     # Convert back to y1, x1, y2, x2
     y1 = center_y - 0.5 * height
     x1 = center_x - 0.5 * width
     y2 = y1 + height
     x2 = x1 + width
-    result = tf.compat.v1.stack([y1, x1, y2, x2], axis=1, name="apply_box_deltas_out")
+    result = tf.stack([y1, x1, y2, x2], axis=1, name="apply_box_deltas_out")
     return result
 
 
@@ -1003,14 +1000,14 @@ def clip_boxes_graph(boxes, window):
     window: [4] in the form y1, x1, y2, x2
     """
     # Split
-    wy1, wx1, wy2, wx2 = tf.compat.v1.split(window, 4)
-    y1, x1, y2, x2 = tf.compat.v1.split(boxes, 4, axis=1)
+    wy1, wx1, wy2, wx2 = tf.split(window, 4)
+    y1, x1, y2, x2 = tf.split(boxes, 4, axis=1)
     # Clip
-    y1 = tf.compat.v1.maximum(tf.compat.v1.minimum(y1, wy2), wy1)
-    x1 = tf.compat.v1.maximum(tf.compat.v1.minimum(x1, wx2), wx1)
-    y2 = tf.compat.v1.maximum(tf.compat.v1.minimum(y2, wy2), wy1)
-    x2 = tf.compat.v1.maximum(tf.compat.v1.minimum(x2, wx2), wx1)
-    clipped = tf.compat.v1.concat([y1, x1, y2, x2], axis=1, name="clipped_boxes")
+    y1 = tf.maximum(tf.minimum(y1, wy2), wy1)
+    x1 = tf.maximum(tf.minimum(x1, wx2), wx1)
+    y2 = tf.maximum(tf.minimum(y2, wy2), wy1)
+    x2 = tf.maximum(tf.minimum(x2, wx2), wx1)
+    clipped = tf.concat([y1, x1, y2, x2], axis=1, name="clipped_boxes")
     clipped.set_shape((clipped.shape[0], 4))
     return clipped
 
