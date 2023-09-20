@@ -18,19 +18,20 @@ import multiprocessing
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-""" # I have not run into a difference in behavior (yet) between using tensorflow.compat.v1.keras and just keras
+# I have not run into a difference in behavior (yet) between using tensorflow.compat.v1.keras and just keras
 import keras
 import keras.backend as K
 import keras.layers as KL
 # import keras.engine as KE
 import keras.models as KM
-"""
 
+"""
 import tensorflow.compat.v1.keras as keras
 import tensorflow.compat.v1.keras.backend as K
 import tensorflow.compat.v1.keras.layers as KL
 # import keras.engine as KE
 import tensorflow.compat.v1.keras.models as KM
+"""
 
 # from tensorflow.compat.v1.keras.saving import hdf5_format
 # from tensorflow.compat.v1.keras.engine import saving
