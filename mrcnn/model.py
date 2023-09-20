@@ -2060,7 +2060,7 @@ class Dynamic:
     def smooth_l1_loss(y_true, y_pred, beta=1.0):
         diff = K.abs(y_true - y_pred)
         less_than_beta = K.cast(K.less(diff, beta), "float32")
-        loss = (less_than_one * 0.5 * diff**2 / beta) + (1 - less_than_one) * (diff - 0.5 * beta)
+        loss = (less_than_beta * 0.5 * diff**2 / beta) + (1 - less_than_beta) * (diff - 0.5 * beta)
         return loss
 
 
@@ -2088,7 +2088,7 @@ def smooth_l1_loss(y_true, y_pred, beta_now=1.0):
 
     diff = K.abs(y_true - y_pred)
     less_than_beta = K.cast(K.less(diff, beta_now), "float32")
-    loss = (less_than_one * 0.5 * diff**2 / beta_now) + (1 - less_than_one) * (diff - 0.5 * beta_now)
+    loss = (less_than_beta * 0.5 * diff**2 / beta_now) + (1 - less_than_beta) * (diff - 0.5 * beta_now)
     return loss
 
 def adioc_loss(gt_bboxes, pr_bboxes, reduction='none'):
