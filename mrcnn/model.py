@@ -24,7 +24,8 @@ import keras.layers as KL
 # import keras.engine as KE
 import keras.models as KM
 
-from tensorflow.compat.v1.python.keras.saving import hdf5_format
+# from tensorflow.compat.v1.keras.saving import hdf5_format
+from tensorflow.compat.v1.keras.engine import saving
 
 from mrcnn import utils
 
@@ -3259,12 +3260,14 @@ class MaskRCNN():
             from keras.engine import topology as saving
         """
 
+        # works with tensorflow 2; compat.v1 as well?
         if by_name:
-            # saving.load_weights_from_hdf5_group_by_name(f, layers)
-            hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
+            saving.load_weights_from_hdf5_group_by_name(f, layers)
+            # hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
         else:
-            # saving.load_weights_from_hdf5_group(f, layers)
-            hdf5_format.load_weights_from_hdf5_group(f, layers)
+            saving.load_weights_from_hdf5_group(f, layers)
+            # hdf5_format.load_weights_from_hdf5_group(f, layers)
+        
 
         if exclude:
             by_name = True
