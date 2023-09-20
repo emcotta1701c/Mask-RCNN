@@ -3245,13 +3245,9 @@ class MaskRCNN():
         print("At top of load_weights().")
 
         import h5py
-        # Conditional import to support versions of Keras before 2.2
-        # TODO: remove in about 6 months (end of 2018)
-        try:
-            from keras.engine import saving
-        except ImportError:
-            # Keras before 2.2 used the 'topology' namespace.
-            from keras.engine import topology as saving
+        # from keras.engine import saving - can not find keras.engine; saving has been moved to keras.saving
+        # from keras.saving import hdf5_format
+        from tensorflow.python.keras.saving import hdf5_format
 
         if exclude:
             by_name = True
@@ -3273,11 +3269,28 @@ class MaskRCNN():
             layers = filter(lambda l: l.name not in exclude, layers)
 
         if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
+            # saving.load_weights_from_hdf5_group_by_name(f, layers)
+            hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
         else:
-            saving.load_weights_from_hdf5_group(f, layers)
+            # saving.load_weights_from_hdf5_group(f, layers)
+            hdf5_format.load_weights_from_hdf5_group(f, layers)
         if hasattr(f, 'close'):
             f.close()
+
+        """
+        # might work
+        keras_model.load_weights(filepath, by_name=by_name)
+        # however, I'm skeptical if inner_model will be initialized correctly
+        """
+
+        """
+        # my own version of the above
+        if hasattr(keras_model, "inner_model"):
+            keras_model.inner_model.load_weights(filepath, by_name=by_name)
+        else:
+            keras_model.load_weights(filepath, by_name=by_name)
+
+        """
 
         # Update the log directory
         self.set_log_dir(filepath)
