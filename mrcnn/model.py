@@ -21,8 +21,10 @@ import numpy as np
 import keras
 import keras.backend as K
 import keras.layers as KL
-import keras.engine as KE
+# import keras.engine as KE
 import keras.models as KM
+
+from keras.saving import hdf5_format
 
 from mrcnn import utils
 
@@ -3246,6 +3248,8 @@ class MaskRCNN():
         print("At top of load_weights().")
 
         import h5py
+
+        """
         # Conditional import to support versions of Keras before 2.2
         # TODO: remove in about 6 months (end of 2018)
         try:
@@ -3253,6 +3257,14 @@ class MaskRCNN():
         except ImportError:
             # Keras before 2.2 used the 'topology' namespace.
             from keras.engine import topology as saving
+        """
+
+        if by_name:
+            # saving.load_weights_from_hdf5_group_by_name(f, layers)
+            hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
+        else:
+            # saving.load_weights_from_hdf5_group(f, layers)
+            hdf5_format.load_weights_from_hdf5_group(f, layers)
 
         if exclude:
             by_name = True
