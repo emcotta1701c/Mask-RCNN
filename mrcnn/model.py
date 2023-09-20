@@ -18,7 +18,7 @@ import multiprocessing
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-"""
+""" # I have not run into a difference in behavior (yet) between using tensorflow.compat.v1.keras and just keras
 import keras
 import keras.backend as K
 import keras.layers as KL
