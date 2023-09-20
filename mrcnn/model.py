@@ -24,7 +24,7 @@ import keras.layers as KL
 # import keras.engine as KE
 import keras.models as KM
 
-from tensorflow.compat.v1.keras.saving import hdf5_format
+from tensorflow.compat.v1.python.keras.saving import hdf5_format
 
 from mrcnn import utils
 
