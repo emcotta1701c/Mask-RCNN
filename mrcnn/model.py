@@ -1951,6 +1951,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     print("s:", s)
     print("s[1]:", s[1])
     print("Shape of x:", x.shape)
+    print("What is being passed to reshape:", str((s[1], num_classes, 4)))
 
     mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
 
