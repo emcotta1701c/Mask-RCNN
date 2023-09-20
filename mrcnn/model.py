@@ -1948,7 +1948,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     s = K.int_shape(x)
 
     #delete later
-    print("Shape of s:", s.shape)
+    print("s:", s)
     print("s[1]:", s[1])
     print("Shape of x:", x.shape)
 
