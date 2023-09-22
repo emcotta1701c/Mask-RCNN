@@ -1,3 +1,100 @@
+
+Ethan: Installation Instructions for running chromosomes.py (without Conda virtual environment)
+Feel free to modify requirements.txt, Python version, and if running on a GPU: CUDA and CUDnn versions.
+
+Python 3.6.7
+
+#0 Have mask_rcnn_coco.h5 and the folder to the prototyping dataset on hand. Presently, chromosomes.py is configured only to work with a training dataset with the exact number of images in the prototyping dataset. Ask Ethan if you do not have the prototyping dataset, or the weights file. Here is a drive link to download the prototyping dataset, which should be unzipped before moving on to the next steps.
+
+https://drive.google.com/drive/folders/1C2g7LQ4PoN14UNrAMbN5fsVDV7JisQ1c?usp=drive_link
+
+
+------------------------------------------------------------------------------
+
+#1 Clone the microscopy_Andrew branch of the emcotta1701c Mask R-CNN repository.
+git clone -b microscopy_Andrew https://github.com/emcotta1701c/Mask-RCNN.git
+
+#2 Modify requirements.txt at your discretion, then pip3 install requirements in requirements.txt
+pip3 install -r Mask-RCNN/requirements.txt
+  Running the above command with the -v flag runs it in verbose mode, where it is easier to monitor the installation of opencv-python, which may take a long time.
+
+Original Matterport requirements.txt:
+numpy
+scipy
+Pillow
+cython
+matplotlib
+scikit-image
+tensorflow>=1.3.0
+keras>=2.0.8
+opencv-python
+h5py
+imgaug
+IPython[all]
+
+
+requirements.txt versions where the code can reach the train_generator() (stuck in loop) error:
+numpy
+scipy
+Pillow
+cython
+matplotlib
+scikit-image
+tensorflow==1.5.0
+keras==2.1.6
+opencv-python==4.5.3.56
+h5py==2.10.0
+imgaug
+IPython[all]
+
+#3 Run setup.py.
+  python3 setup.py install
+
+#4 Clone the Coco repo for the purpose of utilizing the pycocotools module.
+  git clone https://github.com/emcotta1701c/coco.git
+
+  Original Matterport instructions:
+  git clone https://github.com/waleedka/coco.git
+
+#5 (Matterport's coco repo only: Make edits to the PythonAPI make file in the Coco repo), and then run the make file. Then, cd out of coco, back to the project directory.
+Edits: in PythonAPI's make file, replace all occurrences of 'python' with 'python3.'
+cd <home_directory>/coco/PythonAPI/ && make
+cd ~
+
+#6 Specify dataset_dir and weights_dir Bash variables.
+dataset_dir = <dataset_directory>, i.e. dataset_dir = '/home/dataset_microscopy_proto'
+weights_dir = <weights_file_h5_dir>, i.e. weights_dir = '/home/mask_rcnn_coco.h5'
+
+#7 Edit the ROOT_DIR variable in chromosomes.py to point to the directory the Mask-RCNN repo was cloned into.
+ROOT_DIR = <project_dir>, i.e. ROOT_DIR = '/home', with a beginning forward slash and no ending forward slash.
+
+#8 Run chromosomes.py in training mode
+python3 <dir_of_Mask-RCNN>/Mask-RCNN/samples/chromosomes.py train --dataset=$dataset_dir --model=$weights_dir
+
+#9 Have not reached this part yet, but run chromosomes.py in evaluate mode. Not expected to be functional at the moment.
+python3 <dir_of_Mask-RCNN>/samples/chromosomes.py evaluate --dataset=$dataset_dir --model=last
+
+Additional notes:
+
+How to structure the dataset for running chromosomes.py?
+Directory structure (does not need to be in same directory as the project, as long as project can see its dir):
+--dataset_folder_name
+    --train
+      (images here, .tif should work)
+    --val
+      (more images here, .tif should work)
+    --annotations
+      (.json files, where file names exactly correspond to image file names minus the file extension)
+
+The directory folder names (train, val, annotations) must have these exact names. Please see step #0 to obtain the provided dataset. It is not possible to use a dataset with a different number of images without making several changes in the ChromosomesConfig class.
+
+The configurations defined in the class ChromosomesConfig in chromosomes.py have been preset in the microscopy_Andrew branch for debugging purposes. One parameter I was unsure of was USE_MULTIPROCESSING = True. I am not sure if True or False here is better for debugging.
+
+--------------------------------------------------------------------
+
+
+Matterport's README file starts here:
+
 # Mask R-CNN for Object Detection and Segmentation
 
 This is an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870) on Python 3, Keras, and TensorFlow. The model generates bounding boxes and segmentation masks for each instance of an object in the image. It's based on Feature Pyramid Network (FPN) and a ResNet101 backbone.

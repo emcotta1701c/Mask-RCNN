@@ -42,7 +42,10 @@ import json
 # Note: Edit PythonAPI/Makefile and replace "python" with "python3".
 
 # New code to add directory of coco to path - colab specific
-sys.path.append("/content/coco/PythonAPI")
+(this text here is to throw an error if ROOT_DIR is not set up.
+delete this text after setting ROOT_DIR to remove the error)
+ROOT_DIR = os.path.abspath("/content")  # Colab-specific root directory
+sys.path.append(ROOT_DIR+"/coco/PythonAPI")
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
@@ -54,7 +57,6 @@ import shutil
 
 # Root directory of the project
 # ROOT_DIR = os.path.abspath("../../")
-ROOT_DIR = os.path.abspath("/content")  # Colab-specific root directory
 
 # Import Mask RCNN
 sys.path.append(ROOT_DIR)  # To find local version of the library
@@ -80,7 +82,8 @@ class ChromosomeConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2  # change later
+    # IMAGES_PER_GPU = 2  # change later
+    IMAGES_PER_GPU = 2
     # BATCH_SIZE = IMAGES_PER_GPU * GPU_COUNT # do not uncomment this, see __init__ in Config class
 
     # Uncomment to train on 8 GPUs (default is 1)
